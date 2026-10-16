@@ -9,18 +9,27 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
     <footer className="w-full bg-[#f1f5ea] border-t border-[#DFE5D8] py-12">
       <div className="max-w-7xl mx-auto px-6 lg:px-12 flex flex-col md:flex-row items-center justify-between gap-6">
         <div
-          className="flex items-center gap-3 cursor-pointer"
+          className="flex items-center gap-2.5 cursor-pointer select-none group"
           onClick={() => onNavigate('/')}
         >
-          <img
-            alt="MediLink Brand Logo"
-            className="h-6 w-auto object-contain"
-            src="https://lh3.googleusercontent.com/aida/AEtjO1VX5xu07jjYgG0p77rL8wQkk6lYM6m7o2nL_0opAQvTWEUqkorqy6c5_fSSGRLl7S0ih5ScHlVhTeGqxG21ghpdO6YC0tOkHO13MJmfKBGbPZ0b0dh3BBe60h5MJ6YzmhSaxQd2FTla9CR-uiA24cbuwxcFPo_CF8GjyWEtgpZCXXKzL4OTlf9D2OQk_RAb6hnIgvhhWuLrMMyf_vqerOsOGvdXYU4r-VvT6_LG2FjiDl4QBA50jcmnTA"
-          />
+          <div className="w-7 h-7 rounded-lg bg-[#33650E] flex items-center justify-center shrink-0">
+            <svg
+              className="w-4 h-4 text-white"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M12 3v18M3 12h18" stroke="#FFFFFF" strokeWidth="2.5" />
+              <circle cx="12" cy="12" r="3.5" fill="#bdef81" stroke="#33650E" strokeWidth="1.5" />
+            </svg>
+          </div>
           <span className="font-['Plus_Jakarta_Sans'] font-bold text-[18px] text-[#0B0808]">
             MediLink
           </span>
-          <span className="text-[12px] text-[#667065] ml-2">Clinical Continuity & Records Handoff</span>
+          <span className="text-[12px] text-[#667065] ml-1 hidden sm:inline">• Clinical Continuity</span>
         </div>
 
         <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 text-center sm:text-left">
