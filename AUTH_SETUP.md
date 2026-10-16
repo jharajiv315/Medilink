@@ -6,7 +6,7 @@ Clinician accounts cannot self-register. For administrator-managed provisioning,
 
 For the seeded clinician (`m.vance@sutterhealth.org`), you can alternatively set `CLINICIAN_PASSWORD` in `.env`. Use a unique password with at least 12 characters. The server stores a salted scrypt hash in the existing JSON store, not the password. Changing this environment password replaces the hash and ends that clinician's sessions.
 
-For a temporary Vercel presentation only, set `DEMO_CLINICIAN_PASSWORD` and a random `DEMO_CLINICIAN_SESSION_SECRET` as encrypted Production environment variables. This enables a 2-hour stateless session for the seeded clinician without relying on writable function storage. The account is for the bundled fictional demo data only; do not use it with real patient information. Rotate or remove both variables after the presentation.
+For a temporary Vercel presentation only, set `DEMO_CLINICIAN_PASSWORD` and a random `DEMO_CLINICIAN_SESSION_SECRET` as encrypted Production environment variables, plus `DEMO_CLINICIAN_EXPIRES_AT` as an ISO timestamp. This enables a 2-hour stateless session for the seeded clinician without relying on writable function storage; both sign-in and active sessions are rejected after the configured expiry. The account is for the bundled fictional demo data only; do not use it with real patient information. Rotate or remove the variables after the presentation.
 
 Optional seeded accounts can be enabled with `DEMO_PATIENT_PASSWORD` for `ananya.sharma@example.com`. Keep populated `.env` files and the JSON store private.
 

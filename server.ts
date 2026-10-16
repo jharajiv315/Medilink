@@ -112,9 +112,14 @@ function createSession(user: UserSession): string {
   return token;
 }
 
+function isDemoClinicianEnabled(): boolean {
+  const expiresAt = Date.parse(process.env.DEMO_CLINICIAN_EXPIRES_AT || '');
+  return Number.isFinite(expiresAt) && Date.now() < expiresAt;
+}
+
 function createDemoClinicianSession(user: UserSession): string | null {
   const secret = process.env.DEMO_CLINICIAN_SESSION_SECRET;
-  if (!secret) return null;
+  if (!secret || !isDemoClinicianEnabled()) return null;
   const expiresAt = Math.floor(Date.now() / 1000) + DEMO_CLINICIAN_SESSION_TTL_SECONDS;
   const payload = `${user.id}:${expiresAt}`;
   const signature = crypto.createHmac('sha256', secret).update(payload).digest('base64url');
@@ -123,7 +128,7 @@ function createDemoClinicianSession(user: UserSession): string | null {
 
 function resolveDemoClinicianSession(token: string): UserSession | null {
   const secret = process.env.DEMO_CLINICIAN_SESSION_SECRET;
-  if (!secret) return null;
+  if (!secret || !isDemoClinicianEnabled()) return null;
   const match = /^demo\.(\d{10})\.([A-Za-z0-9_-]{43})$/.exec(token);
   if (!match) return null;
   const expiresAt = Number(match[1]);
@@ -218,7 +223,8 @@ app.post('/api/auth/login', (req: Request, res: Response) => {
   const db = getDb();
 
   const demoClinicianPassword = process.env.DEMO_CLINICIAN_PASSWORD;
-  if (email === 'm.vance@sutterhealth.org' && demoClinicianPassword && password) {
+  if (email === 'm.vance@sutterhealth.org' && demoClinicianPassword) {
+    if (!isDemoClinicianEnabled()) return res.status(401).json({ error: 'Email or password is incorrect.' });
     const supplied = Buffer.from(password);
     const expected = Buffer.from(demoClinicianPassword);
     if (supplied.length === expected.length && crypto.timingSafeEqual(supplied, expected)) {
@@ -230,6 +236,7 @@ app.post('/api/auth/login', (req: Request, res: Response) => {
         return res.json({ user: demoUser });
       }
     }
+    return res.status(401).json({ error: 'Email or password is incorrect.' });
   }
 
   const credential = db.authCredentials?.find(item => item.email === email);
