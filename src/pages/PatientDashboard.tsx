@@ -8,7 +8,7 @@ interface PatientDashboardProps {
 
 export const PatientDashboard: React.FC<PatientDashboardProps> = ({ onNavigate }) => {
   const { currentUser, getAuthHeaders } = useAuth();
-  const patientId = currentUser.patientId || 'DEMO-P001';
+  const patientId = currentUser.patientId!;
 
   const [data, setData] = useState<{
     patient?: Patient;
@@ -22,6 +22,9 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({ onNavigate }
       totalDocuments: number;
       totalExtractedFacts: number;
     };
+    activeGrants?: Array<{ id: string; requesterName: string; requestingOrgName: string; purpose: string; approvedCategories: string[]; expiresAt?: string }>;
+    pendingGrants?: Array<{ id: string; requesterName: string; requestingOrgName: string; purpose: string; accessDurationDays: number }>;
+    recentEvents?: Array<{ id: string; title: string; description: string; date: string; source: string; category: string; hash?: string }>;
   }>({});
   const [loading, setLoading] = useState(true);
 
@@ -55,13 +58,13 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({ onNavigate }
         <div>
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#F2F7EB] text-[#33650E] text-[11px] font-bold border border-[#DFE5D8] mb-2">
             <span className="w-2 h-2 rounded-full bg-[#78A541]"></span>
-            <span>Patient ID: DEMO-P001 • MRN-92048-A</span>
+            <span>Patient ID: {data.patient?.patientCode || 'Loading'} · MRN: {data.patient?.mrn || 'Not assigned'}</span>
           </div>
           <h1 className="font-['Plus_Jakarta_Sans'] text-[28px] sm:text-[32px] font-bold text-[#0B0808]">
-            Welcome back, {data.patient?.name || 'Ananya'}.
+            Welcome back, {data.patient?.name || currentUser.name}.
           </h1>
           <p className="font-['DM_Sans'] text-[15px] text-[#42493b] mt-1">
-            Your healthcare journey, organized in one place. Connected across 3 clinical networks.
+            Your healthcare information and sharing permissions, organized in one place.
           </p>
         </div>
 
@@ -98,7 +101,7 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({ onNavigate }
           <div className="font-['Plus_Jakarta_Sans'] text-[32px] font-bold text-[#0B0808]">
             {metrics.connectedHealthSystems}
           </div>
-          <p className="text-[12px] text-[#42493b] mt-1 font-medium">Memorial • Mayo • Sutter</p>
+          <p className="text-[12px] text-[#42493b] mt-1 font-medium">{metrics.connectedHealthSystems} connected sources</p>
         </div>
 
         <div
@@ -115,7 +118,7 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({ onNavigate }
             {metrics.consultationsCount + metrics.labsCount}
           </div>
           <p className="text-[12px] text-[#42493b] mt-1 font-medium">
-            14 Consultations • 28 Lab panels
+            {metrics.consultationsCount} consultations · {metrics.labsCount} lab records
           </p>
         </div>
 
@@ -132,7 +135,7 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({ onNavigate }
           <div className="font-['Plus_Jakarta_Sans'] text-[32px] font-bold text-[#A33837]">
             {metrics.flaggedDiscrepanciesCount}
           </div>
-          <p className="text-[12px] text-[#42493b] mt-1 font-medium">Penicillin Allergy Conflict</p>
+          <p className="text-[12px] text-[#42493b] mt-1 font-medium">{metrics.flaggedDiscrepanciesCount ? 'Review flagged findings' : 'No findings flagged'}</p>
         </div>
 
         <div
@@ -163,11 +166,10 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({ onNavigate }
             </div>
             <div>
               <h3 className="font-['Plus_Jakarta_Sans'] text-[16px] font-bold text-[#0B0808]">
-                Clinical Discrepancy Detected: Penicillin Sensitivity
+                Clinical discrepancies need review
               </h3>
               <p className="font-['DM_Sans'] text-[13px] text-[#42493b] mt-0.5">
-                Memorial Hospital lists severe penicillin hives, while Allergy &amp; Asthma Center
-                documents a negative challenge. Review both source documents.
+                Review the source records and available evidence before taking action.
               </p>
             </div>
           </div>
@@ -198,52 +200,33 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({ onNavigate }
             </div>
 
             <div className="mt-4 space-y-3">
-              <div className="p-4 rounded-xl bg-[#F2F7EB] border border-[#DFE5D8] flex flex-col gap-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="material-symbols-outlined text-[#33650E] text-[18px]">
-                      medical_services
-                    </span>
-                    <span className="font-['Plus_Jakarta_Sans'] text-[14px] font-bold text-[#0B0808]">
-                      Dr. Marcus Vance
-                    </span>
+              {data.activeGrants?.map(grant => (
+                <div key={grant.id} className="p-4 rounded-xl bg-[#F2F7EB] border border-[#DFE5D8] flex flex-col gap-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-['Plus_Jakarta_Sans'] text-[14px] font-bold text-[#0B0808]">{grant.requesterName}</span>
+                    <span className="px-2 py-0.5 rounded-full bg-white text-[#33650E] text-[11px] font-bold border border-[#DFE5D8]">Active</span>
                   </div>
-                  <span className="px-2 py-0.5 rounded-full bg-[#FFFFFF] text-[#33650E] text-[11px] font-bold border border-[#DFE5D8]">
-                    Active • 24d left
-                  </span>
+                  <p className="text-[12px] text-[#42493b]">{grant.requestingOrgName} · {grant.purpose}</p>
+                  <div className="flex items-center justify-between gap-2 pt-2 border-t border-[#DFE5D8] text-[11px]">
+                    <span className="text-[#667065]">Scopes: {grant.approvedCategories.join(', ') || 'None'}</span>
+                    <button onClick={() => onNavigate('/patient/consents')} className="text-[#A33837] font-semibold hover:underline">Manage</button>
+                  </div>
                 </div>
-                <p className="text-[12px] text-[#42493b]">
-                  Sutter Health Clinical Network • Specialty Consultation &amp; Handoff
-                </p>
-                <div className="flex items-center justify-between pt-2 border-t border-[#DFE5D8] text-[11px]">
-                  <span className="text-[#667065]">
-                    Scopes: Allergies, Meds, Labs, Consults
-                  </span>
-                  <button
-                    onClick={() => onNavigate('/patient/consents')}
-                    className="text-[#A33837] font-semibold hover:underline"
-                  >
-                    Revoke
-                  </button>
+              ))}
+              {data.pendingGrants?.map(grant => (
+                <div key={grant.id} className="p-4 rounded-xl bg-white border border-[#DFE5D8] flex items-center justify-between gap-3">
+                  <div>
+                    <p className="font-['Plus_Jakarta_Sans'] text-[13px] font-bold text-[#0B0808]">{grant.requesterName}</p>
+                    <p className="text-[11px] text-[#667065] mt-0.5">{grant.requestingOrgName} · {grant.purpose}</p>
+                  </div>
+                  <button onClick={() => onNavigate('/patient/consents')} className="bg-[#33650E] text-white text-[11px] font-bold px-3 py-1.5 rounded-lg hover:bg-[#28510B]">Review</button>
                 </div>
-              </div>
-
-              <div className="p-4 rounded-xl bg-[#FFFFFF] border border-[#DFE5D8] flex items-center justify-between">
-                <div>
-                  <p className="font-['Plus_Jakarta_Sans'] text-[13px] font-bold text-[#0B0808]">
-                    Dr. Elena Rostova (Memorial Hospital)
-                  </p>
-                  <p className="text-[11px] text-[#667065] mt-0.5">
-                    Requested 14-day access for Diabetic Review
-                  </p>
+              ))}
+              {!data.activeGrants?.length && !data.pendingGrants?.length && (
+                <div className="py-8 text-center rounded-xl border border-dashed border-[#DCE4D5] text-[13px] text-[#667065]">
+                  No clinicians have requested access to your records.
                 </div>
-                <button
-                  onClick={() => onNavigate('/patient/consents')}
-                  className="bg-[#33650E] text-[#FFFFFF] text-[11px] font-bold px-3 py-1.5 rounded-lg hover:bg-[#28510B]"
-                >
-                  Review
-                </button>
-              </div>
+              )}
             </div>
           </div>
 
@@ -256,11 +239,11 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({ onNavigate }
               <span>Patient Data Sovereignty</span>
             </h3>
             <p className="font-['DM_Sans'] text-[13px] text-[#42493b] leading-relaxed">
-              Every document is SHA-256 hashed and stored with zero-knowledge keys. Only providers you
-              explicitly authorize receive granular category access.
+              Uploaded documents receive a SHA-256 fingerprint. Clinicians can view record details only
+              through an active patient approved access grant with permitted categories.
             </p>
             <div className="mt-4 pt-3 border-t border-[#DFE5D8] flex items-center justify-between text-[12px]">
-              <span className="text-[#667065]">Immutable Audit Ledger</span>
+              <span className="text-[#667065]">Access History</span>
               <button
                 onClick={() => onNavigate('/patient/access-history')}
                 className="text-[#33650E] font-bold hover:underline"
@@ -290,73 +273,23 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({ onNavigate }
           </div>
 
           <div className="mt-4 divide-y divide-[#F4F5F1]">
-            <div className="py-3.5 flex items-start justify-between gap-4">
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-lg bg-[#F2F7EB] text-[#33650E] flex items-center justify-center shrink-0">
-                  <span className="material-symbols-outlined text-[18px]">science</span>
+            {data.recentEvents?.map(event => (
+              <div key={event.id} className="py-3.5 flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <h4 className="font-['Plus_Jakarta_Sans'] text-[14px] font-bold text-[#0B0808]">{event.title}</h4>
+                  <p className="text-[12px] text-[#42493b] mt-0.5">{event.description}</p>
+                  <p className="text-[11px] text-[#667065] mt-1 font-mono">{event.date} · {event.source}</p>
                 </div>
-                <div>
-                  <h4 className="font-['Plus_Jakarta_Sans'] text-[14px] font-bold text-[#0B0808]">
-                    Quest Diagnostics — CMP &amp; Glycated Hemoglobin (HbA1c)
-                  </h4>
-                  <p className="text-[12px] text-[#42493b] mt-0.5">
-                    Fasting Glucose: 118 mg/dL • HbA1c: 6.8% • eGFR: 92 mL/min
-                  </p>
-                  <p className="text-[11px] text-[#667065] mt-1 font-mono">
-                    24 Sep 2026 • SHA-256 verified
-                  </p>
-                </div>
+                <span className="px-2.5 py-1 rounded-full bg-[#F2F7EB] text-[#33650E] text-[11px] font-bold shrink-0">{event.category}</span>
               </div>
-              <span className="px-2.5 py-1 rounded-full bg-[#F2F7EB] text-[#33650E] text-[11px] font-bold shrink-0">
-                Lab Report
-              </span>
-            </div>
-
-            <div className="py-3.5 flex items-start justify-between gap-4">
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-lg bg-[#FFF0EF] text-[#A33837] flex items-center justify-center shrink-0">
-                  <span className="material-symbols-outlined text-[18px]">warning</span>
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h4 className="font-['Plus_Jakarta_Sans'] text-[14px] font-bold text-[#0B0808]">
-                      Allergy &amp; Asthma Center — Skin Prick &amp; Oral Challenge
-                    </h4>
-                  </div>
-                  <p className="text-[12px] text-[#42493b] mt-0.5">
-                    Negative Skin Prick &amp; Amoxicillin 250mg oral challenge passed.
-                  </p>
-                  <p className="text-[11px] text-[#667065] mt-1 font-mono">
-                    18 Apr 2023 • Contradicts 2021 hospital allergy
-                  </p>
-                </div>
+            ))}
+            {!data.recentEvents?.length && (
+              <div className="py-10 text-center">
+                <p className="text-[14px] font-semibold text-[#3F4939]">No health records yet</p>
+                <p className="mt-1 text-[12px] text-[#667065]">Add a record to begin building your timeline.</p>
+                <button onClick={() => onNavigate('/patient/import')} className="mt-4 rounded-xl bg-[#33650E] px-4 py-2 text-[12px] font-semibold text-white hover:bg-[#28510B]">Add a record</button>
               </div>
-              <span className="px-2.5 py-1 rounded-full bg-[#FFF5E5] text-[#985C12] text-[11px] font-bold shrink-0">
-                Discrepancy
-              </span>
-            </div>
-
-            <div className="py-3.5 flex items-start justify-between gap-4">
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-lg bg-[#F2F7EB] text-[#33650E] flex items-center justify-center shrink-0">
-                  <span className="material-symbols-outlined text-[18px]">description</span>
-                </div>
-                <div>
-                  <h4 className="font-['Plus_Jakarta_Sans'] text-[14px] font-bold text-[#0B0808]">
-                    Memorial Hospital — Discharge Summary (Bronchitis)
-                  </h4>
-                  <p className="text-[12px] text-[#42493b] mt-0.5">
-                    Noted penicillin allergy hives. Metformin 500mg daily initiated.
-                  </p>
-                  <p className="text-[11px] text-[#667065] mt-1 font-mono">
-                    12 Oct 2021 • Discharge_Summary_Oct21.pdf
-                  </p>
-                </div>
-              </div>
-              <span className="px-2.5 py-1 rounded-full bg-[#F2F7EB] text-[#33650E] text-[11px] font-bold shrink-0">
-                Consultation
-              </span>
-            </div>
+            )}
           </div>
         </div>
       </div>

@@ -23,11 +23,9 @@ import {
   Sparkles,
   Command,
   FileText,
-  RotateCcw,
   KeyRound,
   ExternalLink,
-  Pill,
-  CheckCircle2
+  Pill
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -36,28 +34,29 @@ interface NavbarProps {
 }
 
 export const Navbar: React.FC<NavbarProps> = ({ currentPath, onNavigate }) => {
-  const { currentUser, allUsers, switchUser } = useAuth();
+  const { currentUser, logout, isAuthenticated } = useAuth();
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showCommandSearch, setShowCommandSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [resetSuccess, setResetSuccess] = useState(false);
-  const [activeGrantId, setActiveGrantId] = useState<string>('grant-1792166349001');
+  const [activeGrantId, setActiveGrantId] = useState<string | null>(null);
+  const [activePatientName, setActivePatientName] = useState<string | null>(null);
 
   const dropdownRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  // Poll for active clinical grant once on mount
+  // Load an active grant only for an authenticated clinician.
   useEffect(() => {
+    if (!isAuthenticated || currentUser.role !== 'clinician') return;
     fetch('/api/clinic/dashboard')
       .then(res => res.json())
       .then(data => {
-        if (data.activeGrants && data.activeGrants.length > 0) {
-          setActiveGrantId(data.activeGrants[data.activeGrants.length - 1].id);
-        }
+        const grant = data.activeGrants?.at(-1);
+        setActiveGrantId(grant?.id ?? null);
+        setActivePatientName(grant?.patientName ?? null);
       })
       .catch(() => {});
-  }, []);
+  }, [currentUser.role, isAuthenticated]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -95,7 +94,10 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath, onNavigate }) => {
   }, [showCommandSearch]);
 
   const isMarketingPage =
+    !isAuthenticated ||
     currentPath === '/' ||
+    currentPath === '/login' ||
+    currentPath === '/unauthorized' ||
     currentPath === '/how-it-works' ||
     currentPath === '/features' ||
     currentPath === '/for-clinics' ||
@@ -160,32 +162,23 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath, onNavigate }) => {
       badgeColor: 'bg-indigo-50 text-indigo-700 border-indigo-200'
     },
     {
-      title: 'Active Patient Handoff (Ananya Sharma)',
-      subtitle: 'Two-pane clinical reconciliation for DEMO-P001',
-      path: `/clinic/handoff/${activeGrantId}`,
+      title: activePatientName ? `Patient handoff (${activePatientName})` : 'Patient handoffs',
+      subtitle: activeGrantId ? 'Open the active clinical review' : 'View available patient handoffs',
+      path: activeGrantId ? `/clinic/handoff/${activeGrantId}` : '/clinic/dashboard',
       category: 'Clinician Suite',
-      badge: 'Active Token',
+      badge: activeGrantId ? 'Active' : 'Workspace',
       badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200'
     }
   ];
 
-  const filteredItems = searchableItems.filter(item =>
-    item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    item.subtitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    item.category.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const handleResetDemo = async () => {
-    try {
-      await fetch('/api/db/reset', { method: 'POST' });
-      setResetSuccess(true);
-      setTimeout(() => {
-        window.location.reload();
-      }, 400);
-    } catch {
-      window.location.reload();
-    }
-  };
+  const filteredItems = searchableItems.filter(item => {
+    const isClinicianDestination = item.path.startsWith('/clinic/') || item.path === '/patient/access-history';
+    if (currentUser.role === 'patient' && item.path.startsWith('/clinic/')) return false;
+    if (currentUser.role !== 'patient' && !isClinicianDestination) return false;
+    return item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.subtitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.category.toLowerCase().includes(searchQuery.toLowerCase());
+  });
 
   return (
     <>
@@ -249,7 +242,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath, onNavigate }) => {
 
             {/* In-App Context Pill */}
             {!isMarketingPage && (
-              <div className="hidden lg:flex items-center pl-3 border-l border-[#DFE5D8]">
+              <div className={`${currentUser.role === 'patient' ? 'hidden lg:flex' : 'hidden 2xl:flex'} items-center pl-3 border-l border-[#DFE5D8]`}>
                 {currentUser.role === 'patient' ? (
                   <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#F2F7EB] text-[#2E5E0C] border border-[#D4E0CC]">
                     <span className="w-1.5 h-1.5 rounded-full bg-[#78A541]" />
@@ -271,45 +264,45 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath, onNavigate }) => {
 
           {/* ================= CENTER: NAVIGATION ================= */}
           {isMarketingPage ? (
-            <nav className="hidden lg:flex items-center gap-1 bg-[#F5F8F2] p-1 rounded-full border border-[#DFE5D8]/80 shadow-xs">
+            <nav aria-label="Main navigation" className="hidden xl:flex items-center gap-1 bg-[#F3F7EE] p-1 rounded-2xl border border-[#DCE4D5] shadow-xs">
               <button
                 onClick={() => onNavigate('/')}
-                className={`px-4 py-1.5 rounded-full text-[13px] font-semibold transition-all duration-200 ${
+                className={`px-3 py-1.5 rounded-xl text-[12.5px] font-semibold transition-all duration-200 ${
                   currentPath === '/'
-                    ? 'bg-white text-[#214D09] shadow-[0_1px_4px_rgba(0,0,0,0.06)] font-bold'
-                    : 'text-[#4A5245] hover:text-[#0B0808] hover:bg-white/50'
+                    ? 'bg-white text-[#214D09] shadow-sm font-bold ring-1 ring-black/[0.04]'
+                    : 'text-[#485244] hover:text-[#0B0808] hover:bg-white/60'
                 }`}
               >
                 Home
               </button>
               <button
                 onClick={() => onNavigate('/#how-it-works')}
-                className="px-4 py-1.5 rounded-full text-[13px] font-semibold text-[#4A5245] hover:text-[#0B0808] hover:bg-white/50 transition-colors"
+                className="px-3 py-1.5 rounded-xl text-[12.5px] font-semibold text-[#485244] hover:text-[#0B0808] hover:bg-white/60 transition-colors"
               >
                 How It Works
               </button>
               <button
                 onClick={() => onNavigate('/#features')}
-                className="px-4 py-1.5 rounded-full text-[13px] font-semibold text-[#4A5245] hover:text-[#0B0808] hover:bg-white/50 transition-colors"
+                className="px-3 py-1.5 rounded-xl text-[12.5px] font-semibold text-[#485244] hover:text-[#0B0808] hover:bg-white/60 transition-colors"
               >
                 Features
               </button>
               <button
                 onClick={() => onNavigate('/clinic/dashboard')}
-                className="px-4 py-1.5 rounded-full text-[13px] font-semibold text-[#4A5245] hover:text-[#0B0808] hover:bg-white/50 transition-colors flex items-center gap-1.5"
+                className="px-3 py-1.5 rounded-xl text-[12.5px] font-semibold text-[#485244] hover:text-[#0B0808] hover:bg-white/60 transition-colors flex items-center gap-1.5"
               >
                 <Stethoscope className="w-3.5 h-3.5 text-[#33650E]" />
                 <span>For Clinics</span>
               </button>
               <button
                 onClick={() => onNavigate('/#faq')}
-                className="px-4 py-1.5 rounded-full text-[13px] font-semibold text-[#4A5245] hover:text-[#0B0808] hover:bg-white/50 transition-colors"
+                className="px-3 py-1.5 rounded-xl text-[12.5px] font-semibold text-[#485244] hover:text-[#0B0808] hover:bg-white/60 transition-colors"
               >
                 FAQ
               </button>
             </nav>
           ) : (
-            <nav className="hidden xl:flex items-center gap-1 bg-[#F3F7EE] p-1 rounded-2xl border border-[#DCE4D5] shadow-xs">
+            <nav aria-label={currentUser.role === 'patient' ? 'Patient navigation' : 'Clinician navigation'} className={`hidden xl:flex items-center gap-1 bg-[#F3F7EE] p-1 rounded-2xl border border-[#DCE4D5] shadow-xs ${currentUser.role === 'patient' ? '' : 'shrink-0'}`}>
               {currentUser.role === 'patient' ? (
                 <>
                   <button
@@ -386,6 +379,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath, onNavigate }) => {
                 <>
                   <button
                     onClick={() => onNavigate('/clinic/dashboard')}
+                    aria-current={currentPath === '/clinic/dashboard' ? 'page' : undefined}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12.5px] font-semibold transition-all duration-200 ${
                       currentPath === '/clinic/dashboard'
                         ? 'bg-white text-[#214D09] shadow-sm font-bold ring-1 ring-black/[0.04]'
@@ -393,10 +387,11 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath, onNavigate }) => {
                     }`}
                   >
                     <LayoutDashboard className="w-3.5 h-3.5" />
-                    <span>Clinical Workspace</span>
+                    <span>Overview</span>
                   </button>
                   <button
                     onClick={() => onNavigate('/clinic/access-requests')}
+                    aria-current={currentPath === '/clinic/access-requests' ? 'page' : undefined}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12.5px] font-semibold transition-all duration-200 ${
                       currentPath === '/clinic/access-requests'
                         ? 'bg-white text-[#214D09] shadow-sm font-bold ring-1 ring-black/[0.04]'
@@ -404,22 +399,24 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath, onNavigate }) => {
                     }`}
                   >
                     <FilePlus className="w-3.5 h-3.5" />
-                    <span>Request Records</span>
+                    <span>Requests</span>
                   </button>
                   <button
-                    onClick={() => onNavigate(`/clinic/handoff/${activeGrantId}`)}
+                    onClick={() => onNavigate(activeGrantId ? `/clinic/handoff/${activeGrantId}` : '/clinic/dashboard')}
+                    aria-current={currentPath.startsWith('/clinic/handoff/') ? 'page' : undefined}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12.5px] font-semibold transition-all duration-200 ${
                       currentPath.includes('/clinic/handoff')
                         ? 'bg-white text-[#214D09] shadow-sm font-bold ring-1 ring-black/[0.04]'
                         : 'text-[#485244] hover:text-[#0B0808] hover:bg-white/60'
                     }`}
                   >
-                    <Activity className="w-3.5 h-3.5 text-[#33650E]" />
-                    <span>Handoff (Ananya S.)</span>
-                    <span className="w-2 h-2 rounded-full bg-[#78A541]" />
+                    <Activity className="w-3.5 h-3.5" />
+                    <span>Handoffs</span>
+                    {activeGrantId && <span className="w-2 h-2 rounded-full bg-[#78A541]" />}
                   </button>
                   <button
                     onClick={() => onNavigate('/patient/access-history')}
+                    aria-current={currentPath === '/patient/access-history' ? 'page' : undefined}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12.5px] font-semibold transition-all duration-200 ${
                       currentPath === '/patient/access-history'
                         ? 'bg-white text-[#214D09] shadow-sm font-bold ring-1 ring-black/[0.04]'
@@ -427,7 +424,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath, onNavigate }) => {
                     }`}
                   >
                     <History className="w-3.5 h-3.5" />
-                    <span>Audit Ledger</span>
+                    <span>Audit</span>
                   </button>
                 </>
               )}
@@ -438,20 +435,20 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath, onNavigate }) => {
           <div className="flex items-center gap-2.5 sm:gap-3">
             
             {/* Quick Search / Command Palette Trigger Button */}
-            <button
+            {!isMarketingPage && <button
               onClick={() => setShowCommandSearch(true)}
-              className="flex items-center gap-2 px-2.5 sm:px-3 py-1.5 text-xs text-[#525B4D] bg-[#F4F7EF] hover:bg-[#EBF1E4] hover:text-[#111A0E] border border-[#DCE4D5] rounded-xl transition-all shadow-xs group"
+              className={`flex items-center gap-2 px-2.5 sm:px-3 py-1.5 text-xs text-[#525B4D] bg-[#F4F7EF] hover:bg-[#EBF1E4] hover:text-[#111A0E] border border-[#DCE4D5] rounded-xl transition-all shadow-xs group ${currentUser.role === 'patient' ? '' : 'shrink-0'}`}
               title="Quick Search (⌘K)"
             >
               <Search className="w-3.5 h-3.5 text-[#62705C] group-hover:text-[#214D09] transition-colors" />
-              <span className="hidden md:inline font-medium">Search records...</span>
-              <kbd className="hidden md:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold text-stone-500 bg-white border border-stone-200 rounded shadow-[0_1px_1px_rgba(0,0,0,0.05)]">
+              <span className={`${currentUser.role === 'patient' ? 'hidden md:inline' : 'hidden 2xl:inline'} font-medium`}>Search records...</span>
+              <kbd className={`${currentUser.role === 'patient' ? 'hidden md:inline-flex' : 'hidden 2xl:inline-flex'} items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-semibold text-stone-500 bg-white border border-stone-200 rounded shadow-[0_1px_1px_rgba(0,0,0,0.05)]`}>
                 <Command className="w-2.5 h-2.5" />K
               </kbd>
-            </button>
+            </button>}
 
             {/* Security / HIPAA Verified Shield Indicator (Desktop) */}
-            <div className="hidden 2xl:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#F2F7EB] border border-[#DCE4D5] text-[11px] font-semibold text-[#2E5E0C]">
+            <div className={`${isMarketingPage ? 'hidden' : 'hidden 2xl:flex'} items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#F2F7EB] border border-[#DCE4D5] text-[11px] font-semibold text-[#2E5E0C]`}>
               <Lock className="w-3 h-3 text-[#78A541]" />
               <span>256-Bit Encrypted</span>
             </div>
@@ -461,22 +458,22 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath, onNavigate }) => {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => onNavigate('/login')}
-                  className="hidden sm:inline-flex items-center text-[13.5px] font-semibold text-[#485244] hover:text-[#0B0808] px-3.5 py-2 rounded-xl hover:bg-[#F2F7EB] transition-colors"
+                  className="hidden md:inline-flex items-center text-[13px] font-semibold text-[#485244] hover:text-[#0B0808] px-3 py-2 rounded-xl hover:bg-[#F2F7EB] transition-colors"
                 >
                   Sign In
                 </button>
                 <button
                   onClick={() => onNavigate('/patient/dashboard')}
-                  className="inline-flex items-center gap-2 bg-gradient-to-r from-[#214D09] to-[#33650E] hover:from-[#1A3D07] hover:to-[#28510B] text-white font-['DM_Sans'] text-[13.5px] font-semibold px-4.5 py-2 rounded-xl transition-all shadow-[0_2px_10px_rgba(33,77,9,0.22)] active:scale-[0.98]"
+                  className="hidden sm:inline-flex items-center gap-2 bg-[#33650E] hover:bg-[#28510B] text-white font-['DM_Sans'] text-[13px] font-semibold px-4 py-2 rounded-xl transition-all shadow-sm active:scale-[0.98]"
                 >
-                  <span>Connect Records</span>
+                  <span>Open Portal</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </div>
             ) : (
               <button
                 onClick={() => onNavigate('/')}
-                className="hidden lg:inline-flex items-center gap-1 text-[12.5px] font-semibold text-[#4A5446] hover:text-[#0B0808] px-3 py-1.5 rounded-xl hover:bg-[#F2F7EB] border border-transparent hover:border-[#DCE4D5] transition-all"
+                className={`${currentUser.role === 'patient' ? 'hidden lg:inline-flex' : 'hidden 2xl:inline-flex'} items-center gap-1 text-[12.5px] font-semibold text-[#4A5446] hover:text-[#0B0808] px-3 py-1.5 rounded-xl hover:bg-[#F2F7EB] border border-transparent hover:border-[#DCE4D5] transition-all`}
                 title="View Marketing Landing Page"
               >
                 <span>Home Page</span>
@@ -484,8 +481,8 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath, onNavigate }) => {
               </button>
             )}
 
-            {/* ================= PERSONA SWITCHER / USER PROFILE ================= */}
-            <div className="relative" ref={dropdownRef}>
+            {/* ================= ACCOUNT MENU ================= */}
+            {!isMarketingPage && <div className="relative" ref={dropdownRef}>
               <button
                 onClick={() => setShowUserDropdown(!showUserDropdown)}
                 className={`flex items-center gap-2 p-1 sm:pl-1.5 sm:pr-2.5 py-1 rounded-full sm:rounded-2xl border transition-all duration-200 select-none ${
@@ -493,8 +490,8 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath, onNavigate }) => {
                     ? 'border-[#78A541] bg-[#F2F7EB] shadow-[0_0_0_2px_rgba(120,165,65,0.2)]'
                     : 'border-[#DCE4D5] hover:border-[#78A541] bg-white hover:bg-[#F5F8F1] shadow-xs'
                 }`}
-                title="Switch Demo Persona & Security Credentials"
-                aria-label="User profile and persona switch menu"
+                title="Account menu"
+                aria-label="Account menu"
               >
                 {/* Avatar with role gradient and live dot */}
                 <div className="relative">
@@ -533,10 +530,9 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath, onNavigate }) => {
                 />
               </button>
 
-              {/* Ultra-Luxury Persona Flyout Dropdown */}
+              {/* Account details and sign out */}
               {showUserDropdown && (
-                <div className="absolute right-0 mt-2.5 w-84 bg-white/98 backdrop-blur-2xl rounded-2xl shadow-[0_16px_48px_-8px_rgba(18,29,14,0.18),0_4px_16px_rgba(18,29,14,0.06)] border border-[#DCE4D5] p-3.5 z-50 animate-in fade-in zoom-in-95 duration-150">
-                  {/* Current Authenticated User Badge */}
+                <div className="absolute right-0 mt-2.5 w-80 max-w-[calc(100vw-2rem)] bg-white rounded-2xl shadow-xl border border-[#DCE4D5] p-3.5 z-50 animate-in fade-in zoom-in-95 duration-150">
                   <div className="p-3 bg-gradient-to-br from-[#F4F8EE] to-[#E9F1DF] rounded-xl border border-[#D5E1CC] mb-3">
                     <div className="flex items-center gap-3">
                       <div
@@ -564,116 +560,25 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath, onNavigate }) => {
                         <p className="text-[11px] text-[#556150] truncate">{currentUser.email}</p>
                         <p className="text-[10px] text-[#717E6C] truncate mt-0.5">
                           {currentUser.role === 'patient'
-                            ? 'Patient ID: DEMO-P001 • MRN: ML-89204'
-                            : 'Sutter Health Clinical Provider #MD-4819'}
+                            ? `Patient ID: ${currentUser.patientId || 'Not assigned'}`
+                            : currentUser.organization || 'Clinical provider'}
                         </p>
                       </div>
                     </div>
                   </div>
 
-                  {/* Section Label */}
-                  <div className="px-2 py-1 flex items-center justify-between">
-                    <span className="text-[10.5px] font-bold text-[#5F6B5A] uppercase tracking-wider">
-                      Switch Role Persona
-                    </span>
-                    <span className="text-[10px] text-stone-400 font-medium">1-Click Live Switch</span>
-                  </div>
-
-                  {/* Persona Options */}
-                  <div className="space-y-1.5 mt-1">
-                    {allUsers.map(user => {
-                      const isActive = currentUser.id === user.id;
-                      return (
-                        <button
-                          key={user.id}
-                          onClick={() => {
-                            switchUser(user.id);
-                            setShowUserDropdown(false);
-                            if (user.role === 'patient') {
-                              onNavigate('/patient/dashboard');
-                            } else {
-                              onNavigate('/clinic/dashboard');
-                            }
-                          }}
-                          className={`w-full text-left p-2.5 rounded-xl flex items-center gap-3 transition-all duration-150 ${
-                            isActive
-                              ? 'bg-[#EEF5E6] border border-[#BBD3A5] shadow-xs'
-                              : 'hover:bg-[#F5F8F1] border border-transparent'
-                          }`}
-                        >
-                          <div
-                            className={`w-8 h-8 rounded-lg flex items-center justify-center text-[11px] font-bold text-white shrink-0 ${
-                              user.role === 'patient'
-                                ? 'bg-[#2E5E0C]'
-                                : user.role === 'clinician'
-                                ? 'bg-[#184620]'
-                                : 'bg-[#434B41]'
-                            }`}
-                          >
-                            {user.name
-                              .split(' ')
-                              .map(n => n[0])
-                              .slice(0, 2)
-                              .join('')}
-                          </div>
-
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between">
-                              <p className="text-[12.5px] font-bold text-[#0B0808] truncate">
-                                {user.name}
-                              </p>
-                              {isActive && (
-                                <CheckCircle2 className="w-4 h-4 text-[#2E5E0C] shrink-0" />
-                              )}
-                            </div>
-                            <p className="text-[10.5px] text-[#556150] truncate">
-                              {user.role === 'patient'
-                                ? 'Patient • Ananya Sharma (Type 2 Diab)'
-                                : user.role === 'clinician'
-                                ? 'Attending Physician (Sutter Health)'
-                                : 'Compliance & Privacy Officer'}
-                            </p>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  {/* Cryptographic Session info */}
-                  <div className="mt-3 p-2 rounded-lg bg-[#FAFBF8] border border-[#E7ECE2] text-[10.5px] text-[#5A6655] flex items-center justify-between">
-                    <span className="flex items-center gap-1.5">
-                      <Shield className="w-3 h-3 text-[#2E5E0C]" />
-                      <span>Zero-Knowledge Consent Active</span>
-                    </span>
-                    <span className="font-mono text-[9.5px] text-stone-400">SHA-256</span>
-                  </div>
-
-                  {/* Bottom Actions */}
-                  <div className="mt-3 pt-2.5 border-t border-[#E7ECE2] px-1 flex items-center justify-between text-[11.5px]">
-                    <button
-                      onClick={() => {
-                        setShowUserDropdown(false);
-                        onNavigate(currentUser.role === 'patient' ? '/patient/dashboard' : '/clinic/dashboard');
-                      }}
-                      className="font-bold text-[#2E5E0C] hover:text-[#1E4107] hover:underline flex items-center gap-1"
-                    >
-                      <span>Open Workspace</span>
-                      <ArrowRight className="w-3 h-3" />
-                    </button>
-
-                    <button
-                      onClick={handleResetDemo}
-                      disabled={resetSuccess}
-                      className="text-[#647160] hover:text-[#0B0808] hover:underline flex items-center gap-1 transition-colors"
-                      title="Reset mock medical database to initial seed data"
-                    >
-                      <RotateCcw className={`w-3 h-3 ${resetSuccess ? 'animate-spin text-[#2E5E0C]' : ''}`} />
-                      <span>{resetSuccess ? 'Resetting...' : 'Reset Data'}</span>
-                    </button>
-                  </div>
+                  <button
+                    onClick={() => {
+                      setShowUserDropdown(false);
+                      void logout().finally(() => onNavigate('/'));
+                    }}
+                    className="w-full text-left px-3 py-2 rounded-xl text-[13px] font-semibold text-[#A33837] hover:bg-[#FFF0EF]"
+                  >
+                    Sign out
+                  </button>
                 </div>
               )}
-            </div>
+            </div>}
 
             {/* Mobile Hamburger Toggle Button */}
             <button
@@ -689,8 +594,8 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath, onNavigate }) => {
         {/* ================= MOBILE DRAWER ================= */}
         {mobileMenuOpen && (
           <div className="xl:hidden bg-white border-b border-[#DCE4D5] px-5 py-4 space-y-4 shadow-xl">
-            {/* Active User Persona Banner */}
-            <div className="p-3 bg-[#F4F8EE] rounded-2xl border border-[#D5E1CC] flex items-center justify-between">
+            {/* Active account banner */}
+            {!isMarketingPage && <div className="p-3 bg-[#F4F8EE] rounded-2xl border border-[#D5E1CC] flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-xl bg-[#2E5E0C] text-white flex items-center justify-center font-bold text-xs shadow-xs">
                   {currentUser.name
@@ -706,14 +611,14 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath, onNavigate }) => {
               </div>
               <button
                 onClick={() => {
-                  setShowUserDropdown(true);
                   setMobileMenuOpen(false);
+                  void logout().finally(() => onNavigate('/'));
                 }}
-                className="text-[11.5px] font-bold text-[#2E5E0C] hover:underline px-2.5 py-1 bg-white rounded-lg border border-[#D5E1CC]"
+                className="text-[11.5px] font-bold text-[#A33837] hover:underline px-2.5 py-1 bg-white rounded-lg border border-[#D5E1CC]"
               >
-                Switch
+                Sign out
               </button>
-            </div>
+            </div>}
 
             {/* Navigation Links */}
             <div className="space-y-1 pt-1">
@@ -744,7 +649,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath, onNavigate }) => {
                     }}
                     className="w-full text-left py-2.5 px-3 rounded-xl font-semibold text-[#485244] hover:bg-[#F4F8EE]"
                   >
-                    Key Features
+                    Features
                   </button>
                   <button
                     onClick={() => {
@@ -753,7 +658,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath, onNavigate }) => {
                     }}
                     className="w-full text-left py-2.5 px-3 rounded-xl font-semibold text-[#485244] hover:bg-[#F4F8EE] flex items-center justify-between"
                   >
-                    <span>For Clinics &amp; Physicians</span>
+                    <span>For Clinics</span>
                     <Stethoscope className="w-4 h-4 text-[#33650E]" />
                   </button>
                   <button
@@ -768,12 +673,21 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath, onNavigate }) => {
                   <div className="pt-3 border-t border-[#DFE5D8]">
                     <button
                       onClick={() => {
+                        onNavigate('/login');
+                        setMobileMenuOpen(false);
+                      }}
+                      className="w-full text-center py-2.5 mb-2 rounded-xl font-semibold text-[#33650E] hover:bg-[#F4F8EE]"
+                    >
+                      Sign In
+                    </button>
+                    <button
+                      onClick={() => {
                         onNavigate('/patient/dashboard');
                         setMobileMenuOpen(false);
                       }}
                       className="w-full bg-gradient-to-r from-[#214D09] to-[#33650E] text-white py-3 rounded-xl font-bold text-[14px] shadow-sm flex items-center justify-center gap-2"
                     >
-                      <span>Launch Patient Portal</span>
+                      <span>Open Portal</span>
                       <ArrowRight className="w-4 h-4" />
                     </button>
                   </div>
@@ -865,37 +779,41 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath, onNavigate }) => {
                       onNavigate('/clinic/dashboard');
                       setMobileMenuOpen(false);
                     }}
-                    className="w-full text-left py-2.5 px-3 rounded-xl font-bold text-[#0B0808]"
+                    aria-current={currentPath === '/clinic/dashboard' ? 'page' : undefined}
+                    className={`w-full text-left py-2.5 px-3 rounded-xl font-semibold flex items-center gap-2.5 ${currentPath === '/clinic/dashboard' ? 'bg-[#EEF5E6] text-[#214D09] font-bold' : 'text-[#485244]'}`}
                   >
-                    Clinical Workspace
+                    <LayoutDashboard className="w-4 h-4" /> Overview
                   </button>
                   <button
                     onClick={() => {
                       onNavigate('/clinic/access-requests');
                       setMobileMenuOpen(false);
                     }}
-                    className="w-full text-left py-2.5 px-3 rounded-xl font-semibold text-[#485244]"
+                    aria-current={currentPath === '/clinic/access-requests' ? 'page' : undefined}
+                    className={`w-full text-left py-2.5 px-3 rounded-xl font-semibold flex items-center gap-2.5 ${currentPath === '/clinic/access-requests' ? 'bg-[#EEF5E6] text-[#214D09] font-bold' : 'text-[#485244]'}`}
                   >
-                    Request Patient Records
+                    <FilePlus className="w-4 h-4" /> Requests
                   </button>
                   <button
                     onClick={() => {
-                      onNavigate(`/clinic/handoff/${activeGrantId}`);
+                      onNavigate(activeGrantId ? `/clinic/handoff/${activeGrantId}` : '/clinic/dashboard');
                       setMobileMenuOpen(false);
                     }}
-                    className="w-full text-left py-2.5 px-3 rounded-xl font-bold text-[#214D09] flex items-center justify-between"
+                    aria-current={currentPath.startsWith('/clinic/handoff/') ? 'page' : undefined}
+                    className={`w-full text-left py-2.5 px-3 rounded-xl font-semibold flex items-center justify-between ${currentPath.startsWith('/clinic/handoff/') ? 'bg-[#EEF5E6] text-[#214D09] font-bold' : 'text-[#485244]'}`}
                   >
-                    <span>Active Handoff (Ananya S.)</span>
-                    <span className="w-2 h-2 rounded-full bg-[#78A541] animate-pulse" />
+                    <span className="flex items-center gap-2.5"><Activity className="w-4 h-4" /> Handoffs</span>
+                    {activeGrantId && <span className="w-2 h-2 rounded-full bg-[#78A541]" />}
                   </button>
                   <button
                     onClick={() => {
                       onNavigate('/patient/access-history');
                       setMobileMenuOpen(false);
                     }}
-                    className="w-full text-left py-2.5 px-3 rounded-xl font-semibold text-[#485244]"
+                    aria-current={currentPath === '/patient/access-history' ? 'page' : undefined}
+                    className={`w-full text-left py-2.5 px-3 rounded-xl font-semibold flex items-center gap-2.5 ${currentPath === '/patient/access-history' ? 'bg-[#EEF5E6] text-[#214D09] font-bold' : 'text-[#485244]'}`}
                   >
-                    Audit Ledger
+                    <History className="w-4 h-4" /> Audit
                   </button>
                 </>
               )}

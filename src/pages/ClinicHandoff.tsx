@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext.tsx';
 import type { Patient, AccessGrant, DiscrepancyConflict, ClinicalDocument, MedicalFact } from '../types/medilink.ts';
+import { Ban, Activity, LockKeyhole, Pill, FolderOpen, FileText, TriangleAlert, CircleCheck, ClipboardCheck, BadgeCheck } from 'lucide-react';
 
 interface ClinicHandoffProps {
   grantId: string;
@@ -8,7 +9,7 @@ interface ClinicHandoffProps {
 }
 
 export const ClinicHandoff: React.FC<ClinicHandoffProps> = ({ grantId, onNavigate }) => {
-  const { currentUser, switchUser, getAuthHeaders } = useAuth();
+  const { currentUser, getAuthHeaders } = useAuth();
   const [data, setData] = useState<{
     grant?: AccessGrant;
     patient?: Patient;
@@ -34,12 +35,8 @@ export const ClinicHandoff: React.FC<ClinicHandoffProps> = ({ grantId, onNavigat
   const [reconciledSuccess, setReconciledSuccess] = useState(false);
 
   const loadHandoffData = () => {
-    const headers = getAuthHeaders();
-    if (currentUser.role !== 'clinician' && currentUser.role !== 'admin') {
-      headers['x-medilink-demo-user'] = 'user-dr-vance';
-    }
     fetch(`/api/clinic/handoff/${grantId}`, {
-      headers
+      headers: getAuthHeaders()
     })
       .then(async res => {
         const json = await res.json();
@@ -93,7 +90,7 @@ export const ClinicHandoff: React.FC<ClinicHandoffProps> = ({ grantId, onNavigat
       <div className="max-w-3xl mx-auto px-6 lg:px-12 py-16">
         <div className="bg-[#FFFFFF] rounded-3xl border-2 border-[#A33837] p-8 sm:p-10 shadow-xl space-y-6 text-center">
           <div className="w-16 h-16 rounded-3xl bg-[#FFF0EF] text-[#A33837] flex items-center justify-center mx-auto">
-            <span className="material-symbols-outlined text-[36px]">block</span>
+            <Ban className="w-9 h-9" />
           </div>
 
           <div>
@@ -115,18 +112,6 @@ export const ClinicHandoff: React.FC<ClinicHandoffProps> = ({ grantId, onNavigat
           </div>
 
           <div className="pt-2 flex flex-wrap justify-center gap-4">
-            {currentUser.role !== 'clinician' && (
-              <button
-                onClick={async () => {
-                  await switchUser('user-dr-vance');
-                  loadHandoffData();
-                }}
-                className="bg-[#184620] hover:bg-[#113317] text-[#FFFFFF] text-[14px] font-semibold px-6 py-2.5 rounded-xl shadow-md flex items-center gap-2"
-              >
-                <span className="material-symbols-outlined text-[18px]">stethoscope</span>
-                <span>Switch to Dr. Marcus Vance &amp; Unlock</span>
-              </button>
-            )}
             <button
               onClick={() => onNavigate('/clinic/dashboard')}
               className="bg-[#33650E] text-[#FFFFFF] text-[14px] font-semibold px-6 py-2.5 rounded-xl hover:bg-[#28510B]"
@@ -152,44 +137,24 @@ export const ClinicHandoff: React.FC<ClinicHandoffProps> = ({ grantId, onNavigat
   const conflicts = data.conflicts || [];
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-6 sm:py-8 space-y-6 overflow-x-hidden">
+    <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-8 space-y-6 overflow-x-hidden">
       {/* Top Clinical Banner */}
-      <div className="bg-[#FFFFFF] rounded-2xl p-5 border border-[#DFE5D8] shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center gap-3.5">
-          <div className="w-11 h-11 rounded-xl bg-[#F2F7EB] text-[#33650E] flex items-center justify-center font-bold text-[18px]">
-            AS
-          </div>
+      <div className="bg-[#FFFFFF] rounded-3xl p-6 sm:p-8 border border-[#DFE5D8] shadow-sm space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
           <div>
-            <div className="flex items-center gap-2">
-              <h1 className="font-['Plus_Jakarta_Sans'] text-[18px] font-bold text-[#0B0808]">
-                {patient?.name}
-              </h1>
-              <span className="text-[11px] font-mono bg-[#F2F7EB] text-[#33650E] font-bold px-2 py-0.5 rounded-full border border-[#DFE5D8]">
-                {patient?.patientCode}
-              </span>
-              <span className="text-[12px] text-[#667065]">
-                • DOB: {patient?.birthDate} (38yo F) • MRN: {patient?.mrn}
-              </span>
-            </div>
-            <p className="text-[12px] text-[#42493b] mt-0.5">
-              Conditions: {patient?.conditions.join(', ')} • PCP: {patient?.primaryCarePhysician}
-            </p>
+            <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#F2F7EB] text-[#33650E] text-[11px] font-bold border border-[#DFE5D8] mb-2">
+              <span className="w-2 h-2 rounded-full bg-[#78A541]" /> Clinical workspace · Active handoff
+            </span>
+            <h1 className="font-['Plus_Jakarta_Sans'] text-[28px] sm:text-[32px] font-bold text-[#0B0808]">{patient?.name}</h1>
+            <p className="text-[13px] text-[#667065] mt-1">Patient ID {patient?.patientCode} · DOB {patient?.birthDate} · MRN {patient?.mrn}</p>
           </div>
+          <button onClick={() => onNavigate('/clinic/dashboard')} className="text-[13px] font-bold text-[#33650E] hover:underline self-start whitespace-nowrap">Back to overview</button>
         </div>
-
-        <div className="flex flex-wrap items-center gap-2 text-[12px]">
-          <span className="px-3 py-1 rounded-full bg-[#F2F7EB] text-[#33650E] font-bold border border-[#DFE5D8]">
-            Grant Active (30d pass)
-          </span>
-          <span className="text-[#667065]">
-            Expires: {grant?.expiresAt?.split('T')[0]}
-          </span>
-          <button
-            onClick={() => onNavigate('/clinic/dashboard')}
-            className="text-[#33650E] font-bold hover:underline ml-2"
-          >
-            ← Exit Workspace
-          </button>
+        <div className="flex flex-wrap items-center gap-2 pt-4 border-t border-[#DFE5D8] text-[12px]">
+          <span className="px-3 py-1 rounded-full bg-[#F2F7EB] text-[#33650E] font-bold border border-[#DFE5D8]">Access active</span>
+          <span className="text-[#667065]">Expires {grant?.expiresAt?.split('T')[0]}</span>
+          <span className="text-[#667065] hidden sm:inline">·</span>
+          <span className="text-[#42493b]">Approved: {grant?.approvedCategories.join(', ')}</span>
         </div>
       </div>
 
@@ -202,9 +167,7 @@ export const ClinicHandoff: React.FC<ClinicHandoffProps> = ({ grantId, onNavigat
             <div className="bg-[#FFFFFF] rounded-2xl border border-[#DFE5D8] p-6 shadow-sm space-y-4">
               <div className="flex items-center justify-between pb-3 border-b border-[#F4F5F1]">
                 <h2 className="font-['Plus_Jakarta_Sans'] text-[16px] font-bold text-[#0B0808] flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[#33650E] text-[18px]">
-                    vital_signs
-                  </span>
+                  <Activity className="w-[18px] h-[18px] text-[#33650E] shrink-0" />
                   <span>Active Conditions &amp; Clinical Baseline</span>
                 </h2>
                 <span className="text-[11px] font-bold text-[#33650E] bg-[#F2F7EB] px-2 py-0.5 rounded-full">
@@ -234,7 +197,7 @@ export const ClinicHandoff: React.FC<ClinicHandoffProps> = ({ grantId, onNavigat
             <div className="bg-[#FFFFFF] rounded-2xl border border-[#DFE5D8] p-5 shadow-sm space-y-2">
               <div className="flex items-center justify-between text-[#667065]">
                 <span className="text-[13px] font-bold flex items-center gap-1.5 text-[#0B0808]">
-                  <span className="material-symbols-outlined text-[18px] text-[#985C12]">lock</span>
+                  <LockKeyhole className="w-[18px] h-[18px] text-[#985C12] shrink-0" />
                   Conditions &amp; Diagnoses
                 </span>
                 <span className="text-[11px] font-mono bg-[#FFF5E5] text-[#985C12] px-2 py-0.5 rounded border border-[#985C12]/20">
@@ -251,9 +214,7 @@ export const ClinicHandoff: React.FC<ClinicHandoffProps> = ({ grantId, onNavigat
           <div className="bg-[#FFFFFF] rounded-2xl border border-[#DFE5D8] p-6 shadow-sm space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-[#F4F5F1]">
               <h2 className="font-['Plus_Jakarta_Sans'] text-[16px] font-bold text-[#0B0808] flex items-center gap-2">
-                <span className="material-symbols-outlined text-[#33650E] text-[18px]">
-                  medication
-                </span>
+                <Pill className="w-[18px] h-[18px] text-[#33650E] shrink-0" />
                 <span>Permitted Clinical Records &amp; Provenance</span>
               </h2>
               <span className="text-[11px] text-[#667065]">
@@ -299,9 +260,7 @@ export const ClinicHandoff: React.FC<ClinicHandoffProps> = ({ grantId, onNavigat
           {/* Original Source Documents */}
           <div className="bg-[#FFFFFF] rounded-2xl border border-[#DFE5D8] p-6 shadow-sm space-y-4">
             <h2 className="font-['Plus_Jakarta_Sans'] text-[16px] font-bold text-[#0B0808] flex items-center gap-2">
-              <span className="material-symbols-outlined text-[#33650E] text-[18px]">
-                folder_managed
-              </span>
+              <FolderOpen className="w-[18px] h-[18px] text-[#33650E] shrink-0" />
               <span>Originating Source Documents ({documents.length})</span>
             </h2>
 
@@ -312,9 +271,7 @@ export const ClinicHandoff: React.FC<ClinicHandoffProps> = ({ grantId, onNavigat
                   className="p-3 rounded-xl border border-[#DFE5D8] bg-[#F4F5F1] flex items-center justify-between gap-3 text-[12px]"
                 >
                   <div className="flex items-center gap-2.5">
-                    <span className="material-symbols-outlined text-[#33650E] text-[20px]">
-                      picture_as_pdf
-                    </span>
+                    <FileText className="w-5 h-5 text-[#33650E] shrink-0" />
                     <div>
                       <p className="font-bold text-[#0B0808]">{doc.title}</p>
                       <p className="text-[#667065] text-[11px]">
@@ -345,7 +302,7 @@ export const ClinicHandoff: React.FC<ClinicHandoffProps> = ({ grantId, onNavigat
                 <div className="flex items-center justify-between pb-4 border-b border-[#F4F5F1]">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-[#FFF0EF] text-[#A33837] flex items-center justify-center font-bold">
-                      <span className="material-symbols-outlined text-[22px]">warning</span>
+                      <TriangleAlert className="w-[22px] h-[22px]" />
                     </div>
                     <div>
                       <h2 className="font-['Plus_Jakarta_Sans'] text-[17px] font-bold text-[#0B0808]">
@@ -419,9 +376,7 @@ export const ClinicHandoff: React.FC<ClinicHandoffProps> = ({ grantId, onNavigat
 
                 {/* Patient Affirmation Callout */}
                 <div className="p-3.5 bg-[#F4F5F1] rounded-xl border border-[#DFE5D8] flex items-center gap-2.5 text-[12px] text-[#0B0808]">
-                  <span className="material-symbols-outlined text-[#33650E] text-[18px]">
-                    check_circle
-                  </span>
+                  <CircleCheck className="w-[18px] h-[18px] text-[#33650E] shrink-0" />
                   <span>
                     <strong>Patient Affirmed:</strong> "No symptoms upon amoxicillin re-challenge."
                   </span>
@@ -430,9 +385,7 @@ export const ClinicHandoff: React.FC<ClinicHandoffProps> = ({ grantId, onNavigat
                 {/* Clinician Review & Reconciliation Form */}
                 <div className="p-5 bg-[#F2F7EB] rounded-2xl border border-[#DFE5D8] space-y-4">
                   <h3 className="font-['Plus_Jakarta_Sans'] text-[15px] font-bold text-[#0B0808] flex items-center gap-2">
-                    <span className="material-symbols-outlined text-[#33650E] text-[18px]">
-                      rate_review
-                    </span>
+                    <ClipboardCheck className="w-[18px] h-[18px] text-[#33650E] shrink-0" />
                     <span>Physician Clinical Reconciliation</span>
                   </h3>
 
@@ -478,7 +431,7 @@ export const ClinicHandoff: React.FC<ClinicHandoffProps> = ({ grantId, onNavigat
 
                     {isReconciled ? (
                       <span className="inline-flex items-center gap-1.5 text-[12px] font-bold text-[#33650E]">
-                        <span className="material-symbols-outlined text-[16px]">check_circle</span>
+                        <CircleCheck className="w-4 h-4" />
                         <span>Reconciled &amp; Appended to Timeline</span>
                       </span>
                     ) : (
@@ -495,7 +448,7 @@ export const ClinicHandoff: React.FC<ClinicHandoffProps> = ({ grantId, onNavigat
 
                 {reconciledSuccess && (
                   <div className="p-4 bg-[#F2F7EB] rounded-xl border border-[#78A541] text-[13px] text-[#33650E] font-medium flex items-center gap-2">
-                    <span className="material-symbols-outlined text-[18px]">verified</span>
+                    <BadgeCheck className="w-[18px] h-[18px] shrink-0" />
                     <span>
                       Reconciliation signed by Dr. Marcus Vance. Updated record has been transmitted
                       to patient's timeline and audit ledger.

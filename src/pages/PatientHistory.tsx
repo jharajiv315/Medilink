@@ -22,7 +22,7 @@ interface PatientHistoryProps {
 
 export const PatientHistory: React.FC<PatientHistoryProps> = ({ onNavigate }) => {
   const { currentUser, getAuthHeaders } = useAuth();
-  const patientId = currentUser.patientId || 'DEMO-P001';
+  const patientId = currentUser.patientId!;
 
   const [items, setItems] = useState<TimelineItem[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');

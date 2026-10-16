@@ -8,11 +8,11 @@ interface PatientConflictsProps {
 
 export const PatientConflicts: React.FC<PatientConflictsProps> = ({ onNavigate }) => {
   const { currentUser, getAuthHeaders } = useAuth();
-  const patientId = currentUser.patientId || 'DEMO-P001';
+  const patientId = currentUser.patientId!;
 
   const [conflicts, setConflicts] = useState<DiscrepancyConflict[]>([]);
   const [loading, setLoading] = useState(true);
-  const [patientNote, setPatientNote] = useState('No symptoms upon amoxicillin re-challenge.');
+  const [patientNote, setPatientNote] = useState('');
   const [isAffirming, setIsAffirming] = useState(false);
   const [affirmSuccess, setAffirmSuccess] = useState(false);
 
@@ -72,13 +72,13 @@ export const PatientConflicts: React.FC<PatientConflictsProps> = ({ onNavigate }
           </p>
         </div>
 
-        <button
+        {patientId === 'DEMO-P001' && <button
           onClick={() => onNavigate('/clinic/handoff/grant-sutter-01')}
           className="inline-flex items-center gap-2 bg-[#33650E] hover:bg-[#28510B] text-[#FFFFFF] text-[14px] font-semibold px-4 py-2.5 rounded-xl shadow-sm transition-all"
         >
           <span className="material-symbols-outlined text-[18px]">medical_services</span>
           <span>View as Consulting Clinician</span>
-        </button>
+        </button>}
       </div>
 
       {loading ? (
@@ -305,12 +305,12 @@ export const PatientConflicts: React.FC<PatientConflictsProps> = ({ onNavigate }
                     Physicians can review source documents and sign off on this discrepancy during the
                     Clinical Handoff.
                   </p>
-                  <button
+                  {patientId === 'DEMO-P001' && <button
                     onClick={() => onNavigate('/clinic/handoff/grant-sutter-01')}
                     className="bg-[#F2F7EB] hover:bg-[#ebefe4] text-[#33650E] border border-[#DFE5D8] font-semibold text-[13px] px-4 py-2 rounded-xl transition-colors shrink-0"
                   >
                     Open Clinical Handoff Form →
-                  </button>
+                  </button>}
                 </div>
               )}
             </div>

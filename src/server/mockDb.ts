@@ -21,6 +21,22 @@ export interface MediLinkDatabase {
   conflicts: DiscrepancyConflict[];
   grants: AccessGrant[];
   auditLogs: AuditEvent[];
+  authCredentials?: AuthCredential[];
+  authSessions?: AuthSession[];
+}
+
+export interface AuthCredential {
+  userId: string;
+  email: string;
+  salt: string;
+  passwordHash: string;
+}
+
+export interface AuthSession {
+  id: string;
+  userId: string;
+  tokenHash: string;
+  expiresAt: string;
 }
 
 function createInitialDatabase(): MediLinkDatabase {
@@ -406,7 +422,9 @@ function createInitialDatabase(): MediLinkDatabase {
   };
 }
 
-const DB_FILE_PATH = path.resolve(process.cwd(), 'data', 'medilink_store.json');
+const DB_FILE_PATH = process.env.MEDILINK_DB_PATH
+  ? path.resolve(process.env.MEDILINK_DB_PATH)
+  : path.resolve(process.cwd(), 'data', 'medilink_store.json');
 
 function loadPersistedDatabase(): MediLinkDatabase {
   try {
@@ -414,7 +432,11 @@ function loadPersistedDatabase(): MediLinkDatabase {
       const raw = fs.readFileSync(DB_FILE_PATH, 'utf-8');
       const parsed = JSON.parse(raw);
       if (parsed && Array.isArray(parsed.users) && Array.isArray(parsed.patients)) {
-        return parsed;
+        return {
+          ...parsed,
+          authCredentials: Array.isArray(parsed.authCredentials) ? parsed.authCredentials : [],
+          authSessions: Array.isArray(parsed.authSessions) ? parsed.authSessions : []
+        };
       }
     }
   } catch (err) {
@@ -448,7 +470,26 @@ export const saveDb = (): void => {
 };
 
 export const resetDb = (): MediLinkDatabase => {
-  db = createInitialDatabase();
+  const initial = createInitialDatabase();
+  const seededUserIds = new Set(initial.users.map(user => user.id));
+  const seededPatientIds = new Set(initial.patients.map(patient => patient.id));
+  const registeredUsers = db.users.filter(user => !seededUserIds.has(user.id));
+  const registeredPatients = db.patients.filter(patient => !seededPatientIds.has(patient.id));
+  const registeredPatientIds = new Set(registeredPatients.map(patient => patient.id));
+  db = {
+    ...initial,
+    users: [...initial.users, ...registeredUsers],
+    patients: [...initial.patients, ...registeredPatients],
+    authCredentials: db.authCredentials ?? [],
+    authSessions: (db.authSessions ?? []).filter(session =>
+      seededUserIds.has(session.userId) || registeredUsers.some(user => user.id === session.userId)
+    ),
+    documents: [...initial.documents, ...db.documents.filter(document => registeredPatientIds.has(document.patientId))],
+    facts: [...initial.facts, ...db.facts.filter(fact => registeredPatientIds.has(fact.patientId))],
+    conflicts: [...initial.conflicts, ...db.conflicts.filter(conflict => registeredPatientIds.has(conflict.patientId))],
+    grants: [...initial.grants, ...db.grants.filter(grant => registeredPatientIds.has(grant.patientId))],
+    auditLogs: [...initial.auditLogs, ...db.auditLogs.filter(event => event.patientId && registeredPatientIds.has(event.patientId))]
+  };
   persistDatabase(db);
   return db;
 };

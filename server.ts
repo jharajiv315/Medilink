@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import express, { Request, Response } from 'express';
+import express, { type Request, type Response } from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import crypto from 'crypto';
@@ -47,85 +47,133 @@ function logAuditEvent(event: Omit<AuditEvent, 'id' | 'timestamp' | 'ipHash'>): 
   return newEvent;
 }
 
-const SESSION_SECRET = process.env.SESSION_SECRET || 'medilink-production-hmac-sha256-key-92841';
+const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
+const PASSWORD_MIN_LENGTH = 12;
+const SEED_CREDENTIALS = [
+  { userId: 'user-ananya', envKey: 'DEMO_PATIENT_PASSWORD' },
+  { userId: 'user-dr-vance', envKey: 'CLINICIAN_PASSWORD' },
+  { userId: 'user-auditor', envKey: 'ADMIN_PASSWORD' }
+];
 
-function signSessionToken(user: UserSession): string {
-  const payload = {
-    userId: user.id,
-    name: user.name,
-    role: user.role,
-    email: user.email,
-    patientId: user.patientId,
-    organizationId: user.organizationId,
-    organization: user.organization,
-    title: user.title,
-    badgeNumber: user.badgeNumber,
-    exp: Date.now() + 24 * 60 * 60 * 1000 // 24 hours
-  };
-  const b64Payload = Buffer.from(JSON.stringify(payload)).toString('base64url');
-  const hmac = crypto.createHmac('sha256', SESSION_SECRET).update(b64Payload).digest('base64url');
-  return `mlk_${b64Payload}.${hmac}`;
+function passwordDigest(password: string, salt: string): string {
+  return crypto.scryptSync(password, salt, 64).toString('hex');
 }
 
-function verifySessionToken(token: string): UserSession | null {
-  if (!token || !token.startsWith('mlk_')) return null;
-  try {
-    const raw = token.slice(4);
-    const [b64Payload, signature] = raw.split('.');
-    if (!b64Payload || !signature) return null;
-    const expectedSig = crypto.createHmac('sha256', SESSION_SECRET).update(b64Payload).digest('base64url');
-    if (signature !== expectedSig) return null;
-    const payload = JSON.parse(Buffer.from(b64Payload, 'base64url').toString('utf-8'));
-    if (payload.exp && Date.now() > payload.exp) return null;
-    return {
-      id: payload.userId,
-      name: payload.name,
-      role: payload.role,
-      email: payload.email,
-      patientId: payload.patientId,
-      organizationId: payload.organizationId,
-      organization: payload.organization,
-      title: payload.title,
-      badgeNumber: payload.badgeNumber
-    };
-  } catch {
-    return null;
+function passwordMatches(password: string, credential: { salt: string; passwordHash: string }): boolean {
+  const suppliedHash = Buffer.from(passwordDigest(password, credential.salt), 'hex');
+  const storedHash = Buffer.from(credential.passwordHash, 'hex');
+  return suppliedHash.length === storedHash.length && crypto.timingSafeEqual(suppliedHash, storedHash);
+}
+
+function savePassword(user: UserSession, password: string): void {
+  const db = getDb();
+  const credentials = db.authCredentials ?? (db.authCredentials = []);
+  const existing = credentials.find(item => item.userId === user.id);
+  if (existing && passwordMatches(password, existing)) return;
+  const salt = crypto.randomBytes(16).toString('hex');
+  const credential = { userId: user.id, email: user.email.toLowerCase(), salt, passwordHash: passwordDigest(password, salt) };
+  const index = credentials.findIndex(item => item.userId === user.id);
+  if (index >= 0) credentials[index] = credential;
+  else credentials.push(credential);
+  db.authSessions = (db.authSessions ?? []).filter(session => session.userId !== user.id);
+  saveDb();
+}
+
+function provisionConfiguredSeedCredentials(): void {
+  for (const { userId, envKey } of SEED_CREDENTIALS) {
+    const password = process.env[envKey];
+    if (!password) continue;
+    if (password.length < PASSWORD_MIN_LENGTH) {
+      throw new Error(`${envKey} must be at least ${PASSWORD_MIN_LENGTH} characters.`);
+    }
+    const user = getDb().users.find(candidate => candidate.id === userId);
+    const credential = getDb().authCredentials?.find(candidate => candidate.userId === userId);
+    if (user && (!credential || !passwordMatches(password, credential))) savePassword(user, password);
   }
+}
+
+provisionConfiguredSeedCredentials();
+
+function createSession(user: UserSession): string {
+  const db = getDb();
+  const token = crypto.randomBytes(32).toString('base64url');
+  const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+  const sessions = db.authSessions ?? (db.authSessions = []);
+  const now = Date.now();
+  db.authSessions = sessions.filter(session => Date.parse(session.expiresAt) > now);
+  db.authSessions.push({
+    id: crypto.randomUUID(),
+    userId: user.id,
+    tokenHash,
+    expiresAt: new Date(now + SESSION_TTL_MS).toISOString()
+  });
+  saveDb();
+  return token;
+}
+
+function resolveSession(token: string): UserSession | null {
+  if (!/^[A-Za-z0-9_-]{40,}$/.test(token)) return null;
+  const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+  const session = getDb().authSessions?.find(candidate => {
+    const storedHash = Buffer.from(candidate.tokenHash, 'hex');
+    const suppliedHash = Buffer.from(tokenHash, 'hex');
+    return storedHash.length === suppliedHash.length && crypto.timingSafeEqual(storedHash, suppliedHash);
+  });
+  const expiresAt = session ? Date.parse(session.expiresAt) : NaN;
+  if (!session || !Number.isFinite(expiresAt) || expiresAt <= Date.now()) return null;
+  return getDb().users.find(user => user.id === session.userId) ?? null;
+}
+
+function readSessionToken(req: Request): string | undefined {
+  const authHeader = req.headers.authorization;
+  if (authHeader?.startsWith('Bearer ')) return authHeader.slice(7);
+  const cookieHeader = req.headers.cookie || '';
+  const sessionCookie = cookieHeader.split(';').map(part => part.trim()).find(part => part.startsWith('medilink_session='));
+  if (!sessionCookie) return undefined;
+  try {
+    return decodeURIComponent(sessionCookie.slice('medilink_session='.length));
+  } catch {
+    return undefined;
+  }
+}
+
+function setSessionCookie(res: Response, token: string, maxAgeSeconds = SESSION_TTL_MS / 1000): void {
+  const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
+  res.setHeader('Set-Cookie', `medilink_session=${encodeURIComponent(token)}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${maxAgeSeconds}${secure}`);
 }
 
 // Session authentication middleware
 function authenticateSession(req: Request, res: Response, next: () => void) {
-  const authHeader = req.headers.authorization;
-  const token = authHeader && authHeader.startsWith('Bearer ')
-    ? authHeader.slice(7)
-    : (req.headers['x-medilink-token'] as string);
+  if (!req.path.startsWith('/api/')) return next();
+  res.setHeader('Cache-Control', 'no-store');
+  if (req.path === '/api/health' || req.path === '/api/auth/login' || req.path === '/api/auth/register') return next();
 
-  if (token) {
-    const session = verifySessionToken(token);
-    if (session) {
-      (req as any).user = session;
-      return next();
-    }
-  }
-
-  // Fallback for seamless demo testing if userId header is provided
-  const demoUserId = req.headers['x-medilink-demo-user'] as string;
-  if (demoUserId) {
-    const db = getDb();
-    const user = db.users.find(u => u.id === demoUserId);
-    if (user) {
-      (req as any).user = user;
-      return next();
-    }
-  }
-
-  // Default to primary demo patient session if in simulation sandbox
-  const db = getDb();
-  (req as any).user = db.users[0];
+  const token = readSessionToken(req);
+  const user = token ? resolveSession(token) : null;
+  if (!user) return res.status(401).json({ error: 'Sign in is required.' });
+  (req as any).user = user;
   next();
 }
 
 app.use(authenticateSession);
+
+function getRequestUser(req: Request): UserSession {
+  return (req as any).user as UserSession;
+}
+
+function allowRoles(req: Request, res: Response, roles: UserSession['role'][]): boolean {
+  if (!roles.includes(getRequestUser(req).role)) {
+    res.status(403).json({ error: 'You do not have permission to perform this action.' });
+    return false;
+  }
+  return true;
+}
+
+function canAccessGrant(user: UserSession, grant: AccessGrant): boolean {
+  if (user.role === 'admin') return true;
+  if (user.role !== 'clinician') return false;
+  return grant.requesterUserId === user.id || Boolean(user.organizationId && grant.requestingOrgId === user.organizationId);
+}
 
 // ======================== API ROUTES ========================
 
@@ -136,31 +184,110 @@ app.get('/api/health', (_req: Request, res: Response) => {
 
 // 2. Auth & Session
 app.post('/api/auth/login', (req: Request, res: Response) => {
-  const { userId } = req.body;
+  const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+  const password = typeof req.body.password === 'string' ? req.body.password : '';
   const db = getDb();
-  const user = db.users.find(u => u.id === userId);
-  if (!user) {
-    return res.status(404).json({ error: 'User not found in demo directory' });
+  const credential = db.authCredentials?.find(item => item.email === email);
+  const user = credential && db.users.find(item => item.id === credential.userId);
+  if (!credential || !user || !password) return res.status(401).json({ error: 'Email or password is incorrect.' });
+  if (!passwordMatches(password, credential)) {
+    return res.status(401).json({ error: 'Email or password is incorrect.' });
   }
-  const token = signSessionToken(user);
-  return res.json({ user, token });
+  const token = createSession(user);
+  setSessionCookie(res, token);
+  return res.json({ user });
+});
+
+app.post('/api/auth/register', (req: Request, res: Response) => {
+  const name = typeof req.body.name === 'string' ? req.body.name.trim() : '';
+  const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+  const password = typeof req.body.password === 'string' ? req.body.password : '';
+  const birthDate = typeof req.body.birthDate === 'string' ? req.body.birthDate : '';
+  const gender = typeof req.body.gender === 'string' ? req.body.gender.trim() : '';
+  const parsedBirthDate = Date.parse(birthDate);
+
+  if (name.length < 2 || name.length > 100) return res.status(400).json({ error: 'Enter your name (2 to 100 characters).' });
+  if (!/^\S+@\S+\.\S+$/.test(email) || email.length > 254) return res.status(400).json({ error: 'Enter a valid email address.' });
+  if (password.length < PASSWORD_MIN_LENGTH || password.length > 256) {
+    return res.status(400).json({ error: `Use a password between ${PASSWORD_MIN_LENGTH} and 256 characters.` });
+  }
+  if (!birthDate || !Number.isFinite(parsedBirthDate) || parsedBirthDate > Date.now()) {
+    return res.status(400).json({ error: 'Enter a valid date of birth.' });
+  }
+  if (!gender || gender.length > 40) return res.status(400).json({ error: 'Select or enter a gender value.' });
+
+  const db = getDb();
+  if (db.users.some(user => user.email.toLowerCase() === email)) {
+    return res.status(409).json({ error: 'Unable to create an account with those details. Sign in or contact support.' });
+  }
+
+  let patientCode: string;
+  do {
+    patientCode = `ML-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
+  } while (db.patients.some(patient => patient.patientCode === patientCode));
+
+  const patientId = `patient-${crypto.randomUUID()}`;
+  const user: UserSession = {
+    id: `user-${crypto.randomUUID()}`,
+    name,
+    email,
+    role: 'patient',
+    patientId
+  };
+  db.users.push(user);
+  db.patients.push({
+    id: patientId,
+    patientCode,
+    name,
+    birthDate: new Date(parsedBirthDate).toISOString().slice(0, 10),
+    gender,
+    mrn: 'Not provided',
+    bloodType: 'Not provided',
+    conditions: [],
+    allergiesSummary: 'Not provided',
+    primaryCarePhysician: 'Not provided'
+  });
+  savePassword(user, password);
+  const token = createSession(user);
+  setSessionCookie(res, token);
+  return res.status(201).json({ user });
 });
 
 app.get('/api/auth/me', (req: Request, res: Response) => {
-  const user = (req as any).user;
-  res.json({ user });
+  res.json({ user: getRequestUser(req) });
 });
 
-app.get('/api/auth/users', (_req: Request, res: Response) => {
-  const db = getDb();
-  res.json({ users: db.users });
+app.post('/api/auth/logout', (req: Request, res: Response) => {
+  const token = readSessionToken(req);
+  if (token) {
+    const hash = crypto.createHash('sha256').update(token).digest('hex');
+    const db = getDb();
+    db.authSessions = (db.authSessions ?? []).filter(session => session.tokenHash !== hash);
+    saveDb();
+  }
+  setSessionCookie(res, '', 0);
+  res.json({ success: true });
 });
 
 // 3. Reset DB for repeatable demo testing
-app.post('/api/db/reset', (_req: Request, res: Response) => {
+app.post('/api/db/reset', (req: Request, res: Response) => {
+  if (!allowRoles(req, res, ['admin'])) return;
   resetDb();
   saveDb();
-  res.json({ success: true, message: 'Database reset to initial synthetic dataset' });
+  res.json({ success: true, message: 'Synthetic demo data has been reset. Registered patient accounts were preserved.' });
+});
+
+app.use('/api/patients/:patientId', (req: Request, res: Response, next: () => void) => {
+  const user = getRequestUser(req);
+  if (user.role !== 'patient' || user.patientId !== req.params.patientId) {
+    return res.status(403).json({ error: 'You can only access your own patient record.' });
+  }
+  next();
+});
+
+app.use('/api/clinic', (req: Request, res: Response, next: () => void) => {
+  if (!allowRoles(req, res, ['clinician', 'admin'])) return;
+  next();
 });
 
 // 4. Patient Summary & Metrics
@@ -177,6 +304,26 @@ app.get('/api/patients/:patientId/summary', (req: Request, res: Response) => {
   const patientConflicts = db.conflicts.filter(c => c.patientId === patientId);
   const activeGrants = db.grants.filter(g => g.patientId === patientId && evaluateGrantStatus(g) === 'active');
   const pendingGrants = db.grants.filter(g => g.patientId === patientId && g.status === 'pending');
+  const recentEvents = [
+    ...patientDocs.map(document => ({
+      id: document.id,
+      title: document.title,
+      description: document.rawTextExcerpt,
+      date: document.clinicalDate,
+      source: document.sourceOrganizationName,
+      category: mapDocTypeToCategory(document.documentType),
+      hash: document.sha256Hash
+    })),
+    ...patientFacts.map(fact => ({
+      id: fact.id,
+      title: fact.assertion,
+      description: fact.value,
+      date: fact.clinicalDate,
+      source: fact.sourceOrgName,
+      category: mapFactTypeToCategory(fact.factType),
+      hash: undefined
+    }))
+  ].sort((a, b) => Date.parse(b.date) - Date.parse(a.date)).slice(0, 4);
 
   const uniqueOrgs = new Set([
     ...patientDocs.map(d => d.sourceOrganizationName),
@@ -198,7 +345,10 @@ app.get('/api/patients/:patientId/summary', (req: Request, res: Response) => {
       pendingGrantsCount: pendingGrants.length,
       totalDocuments: patientDocs.length,
       totalExtractedFacts: patientFacts.length
-    }
+    },
+    activeGrants,
+    pendingGrants,
+    recentEvents
   });
 });
 
@@ -395,7 +545,7 @@ app.post('/api/patients/:patientId/conflicts/:conflictId/affirm', (req: Request,
   db.conflicts[index] = updated;
 
   logAuditEvent({
-    actorName: 'Ananya Sharma',
+    actorName: getRequestUser(req).name,
     actorRole: 'patient',
     organization: 'Patient Record Continuity',
     patientId,
@@ -446,7 +596,7 @@ app.post('/api/patients/:patientId/consents/:grantId/approve', (req: Request, re
   grant.expiresAt = expiresAt;
 
   logAuditEvent({
-    actorName: 'Ananya Sharma',
+    actorName: getRequestUser(req).name,
     actorRole: 'patient',
     organization: 'Patient Consent Gateway',
     patientId,
@@ -474,7 +624,7 @@ app.post('/api/patients/:patientId/consents/:grantId/revoke', (req: Request, res
   grant.revocationReason = reason || 'Patient revoked authorization.';
 
   logAuditEvent({
-    actorName: 'Ananya Sharma',
+    actorName: getRequestUser(req).name,
     actorRole: 'patient',
     organization: 'Patient Consent Gateway',
     patientId,
@@ -490,32 +640,25 @@ app.post('/api/patients/:patientId/consents/:grantId/revoke', (req: Request, res
 
 // 9. Clinician Access Requests
 app.post('/api/clinic/requests', (req: Request, res: Response) => {
-  const {
-    patientCode,
-    requesterName,
-    requesterTitle,
-    requestingOrgId,
-    requestingOrgName,
-    purpose,
-    requestedCategories,
-    durationDays
-  } = req.body;
+  const { patientCode, purpose, requestedCategories, durationDays } = req.body;
+  const clinician = getRequestUser(req);
 
   const db = getDb();
   const patient = db.patients.find(p => p.patientCode === patientCode || p.id === patientCode);
   if (!patient) {
-    return res.status(404).json({ error: `No patient found with code "${patientCode}". Try DEMO-P001 or ML-89204.` });
+    return res.status(404).json({ error: 'No patient was found for that patient code.' });
   }
 
   const grantId = `grant-${Date.now()}`;
   const newGrant: AccessGrant = {
     id: grantId,
+    requesterUserId: clinician.id,
     patientId: patient.id,
     patientName: patient.name,
-    requestingOrgId: requestingOrgId || 'org-sutter',
-    requestingOrgName: requestingOrgName || 'Sutter Health Clinical Network',
-    requesterName: requesterName || 'Dr. Marcus Vance',
-    requesterTitle: requesterTitle || 'Attending Physician',
+    requestingOrgId: clinician.organizationId || '',
+    requestingOrgName: clinician.organization || '',
+    requesterName: clinician.name,
+    requesterTitle: clinician.title || 'Attending Physician',
     purpose: purpose || 'Specialty Clinical Consultation',
     requestedCategories: requestedCategories || ['Allergies', 'Medications', 'Lab Reports'],
     approvedCategories: [],
@@ -544,22 +687,25 @@ app.post('/api/clinic/requests', (req: Request, res: Response) => {
 // 10. Clinician Dashboard Data
 app.get('/api/clinic/dashboard', (_req: Request, res: Response) => {
   const db = getDb();
+  const clinician = getRequestUser(_req);
   const grantsWithStatus = db.grants.map(g => ({
     ...g,
     effectiveStatus: evaluateGrantStatus(g)
-  }));
+  })).filter(grant => canAccessGrant(clinician, grant));
 
   const activeGrants = grantsWithStatus.filter(g => g.effectiveStatus === 'active');
   const pendingRequests = grantsWithStatus.filter(g => g.effectiveStatus === 'pending');
-  const patient1Conflicts = db.conflicts.filter(c => c.status !== 'clinician_reconciled');
+  const visiblePatientIds = new Set(activeGrants.map(grant => grant.patientId));
+  const visiblePatients = db.patients.filter(patient => visiblePatientIds.has(patient.id));
+  const visibleConflicts = db.conflicts.filter(conflict => visiblePatientIds.has(conflict.patientId));
 
   res.json({
-    clinician: db.users.find(u => u.role === 'clinician'),
-    organization: db.organizations.find(o => o.id === 'org-sutter'),
+    clinician,
+    organization: db.organizations.find(o => o.id === clinician.organizationId),
     activeGrants,
     pendingRequests,
-    unresolvedDiscrepanciesCount: patient1Conflicts.length,
-    recentPatients: db.patients
+    unresolvedDiscrepanciesCount: visibleConflicts.filter(c => c.status !== 'clinician_reconciled').length,
+    recentPatients: visiblePatients
   });
 });
 
@@ -573,7 +719,10 @@ app.get('/api/clinic/handoff/:grantId', (req: Request, res: Response) => {
     return res.status(404).json({ error: 'Access grant not found' });
   }
 
-  const caller: UserSession = (req as any).user || db.users.find(u => u.role === 'clinician') || db.users[1];
+  const caller = getRequestUser(req);
+  if (!canAccessGrant(caller, grant)) {
+    return res.status(403).json({ error: 'This clinical grant is not assigned to your account or organization.' });
+  }
   const authCheck = authorizeClinicianHandoffAccess(grant, {
     userId: caller.id,
     role: caller.role,
@@ -625,9 +774,9 @@ app.get('/api/clinic/handoff/:grantId', (req: Request, res: Response) => {
   });
 
   logAuditEvent({
-    actorName: grant.requesterName,
+    actorName: caller.name,
     actorRole: 'clinician',
-    organization: grant.requestingOrgName,
+    organization: caller.organization || grant.requestingOrgName,
     patientId: patient.id,
     action: 'RECORD_ACCESSED',
     outcome: 'SUCCESS',
@@ -657,7 +806,7 @@ app.post('/api/clinic/handoff/:grantId/reconcile', (req: Request, res: Response)
   const db = getDb();
   const grant = db.grants.find(g => g.id === grantId);
 
-  if (!grant || evaluateGrantStatus(grant) !== 'active') {
+  if (!grant || !canAccessGrant(getRequestUser(req), grant) || evaluateGrantStatus(grant) !== 'active') {
     return res.status(403).json({ error: 'Access Denied: Grant is not active' });
   }
 
@@ -698,9 +847,9 @@ app.post('/api/clinic/handoff/:grantId/reconcile', (req: Request, res: Response)
   db.facts.unshift(reconciledFact);
 
   logAuditEvent({
-    actorName: grant.requesterName,
+    actorName: getRequestUser(req).name,
     actorRole: 'clinician',
-    organization: grant.requestingOrgName,
+    organization: getRequestUser(req).organization || grant.requestingOrgName,
     patientId: grant.patientId,
     action: 'CLINICAL_REVIEW_RECORDED',
     outcome: 'SUCCESS',
@@ -716,14 +865,26 @@ app.post('/api/clinic/handoff/:grantId/reconcile', (req: Request, res: Response)
 app.get('/api/audit', (req: Request, res: Response) => {
   const { patientId } = req.query;
   const db = getDb();
+  const user = getRequestUser(req);
   let logs = db.auditLogs;
-  if (patientId) {
-    logs = logs.filter(l => l.patientId === patientId);
+  if (user.role === 'patient') {
+    if (patientId && patientId !== user.patientId) return res.status(403).json({ error: 'You can only view your own audit history.' });
+    logs = logs.filter(log => log.patientId === user.patientId);
+  } else if (user.role === 'clinician') {
+    return res.status(403).json({ error: 'Audit history is not available to clinician accounts.' });
+  } else if (patientId) {
+    logs = logs.filter(log => log.patientId === patientId);
   }
   res.json({ logs });
 });
 
 // ======================== SERVER & VITE INTEGRATION ========================
+
+// The development server serves the app from the project root. Keep the
+// persisted JSON database out of Vite's static file handling.
+app.use('/data', (_req: Request, res: Response) => {
+  res.status(404).end();
+});
 
 async function startServer() {
   const isProduction = process.env.NODE_ENV === 'production';

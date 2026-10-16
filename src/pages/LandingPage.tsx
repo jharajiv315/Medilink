@@ -100,76 +100,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
             </div>
           </div>
 
-          {/* Right Column: Visual Composition with Layered Panels */}
+          {/* Right Column: Unobstructed consultation photo */}
           <div className="lg:col-span-6 relative">
-            <div className="relative rounded-3xl bg-[#F2F7EB] p-3 sm:p-4 shadow-xl border border-[#DFE5D8] overflow-hidden">
-              {/* Primary Doctor/Patient Consultation Photo from Google Stitch */}
+            <div className="rounded-3xl bg-[#F2F7EB] p-3 sm:p-4 shadow-lg border border-[#DFE5D8] overflow-hidden">
               <div className="relative rounded-2xl overflow-hidden aspect-[4/3] w-full bg-[#ebefe4]">
                 <img
                   alt="Authentic healthcare consultation in a calm, modern clinic"
                   className="w-full h-full object-cover"
                   src="https://lh3.googleusercontent.com/aida-public/AB6AXuD3snnLrxXlUdbHeLxY_0lxmfXwQLnnjN1ewTclfYTHj28TWFjJC8krWgIYm_6F8hE65VjrDW7BXo0JWWjj3zaUKPYrwfeb-N8xXbvEoXu3ThqKD96ZwO99xL8Y6o7WOGMfL1oouRI-cqcE5bYyQZ4KavWpGfKLmFvtLd1r1jg8KUKYOQTn2gskdrofQkpKY72BvZYMmX3I33cVbSzCPHQOD428YBsxbCJi1vsk93SoVZHh3kor_xeJ"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-black/10 pointer-events-none"></div>
-              </div>
-
-              {/* Layered Panel 1: Top Right Providers Connected */}
-              <div className="absolute top-7 right-7 max-w-[240px] bg-[#FFFFFF]/95 backdrop-blur-md p-3.5 rounded-xl shadow-lg border border-[#DFE5D8] flex flex-col gap-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold text-[#667065] uppercase tracking-wider">
-                    Live Sync
-                  </span>
-                  <span className="flex items-center gap-1 text-[11px] text-[#214c00] font-bold">
-                    <span className="w-2 h-2 rounded-full bg-[#78A541] animate-ping"></span>
-                    Active
-                  </span>
-                </div>
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-[#F2F7EB] flex items-center justify-center text-[#33650E]">
-                    <span className="material-symbols-outlined text-[20px]">domain</span>
-                  </div>
-                  <div className="leading-tight">
-                    <p className="text-[13px] text-[#0B0808] font-bold">3 Health Systems</p>
-                    <p className="text-[11px] text-[#667065]">Memorial • Mayo • Sutter</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Layered Panel 2: Bottom Left Records Summary */}
-              <div
-                onClick={() => onNavigate('/patient/history')}
-                className="cursor-pointer absolute bottom-16 left-6 sm:left-7 max-w-[290px] bg-[#FFFFFF]/95 backdrop-blur-md p-4 rounded-xl shadow-lg border border-[#DFE5D8] flex flex-col gap-2.5 hover:scale-[1.02] transition-transform"
-              >
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[#33650E] text-[18px]">
-                    folder_managed
-                  </span>
-                  <span className="text-[13px] text-[#0B0808] font-bold">
-                    Unified Medical History
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 text-[12px] font-semibold">
-                  <span className="px-2 py-0.5 rounded-md bg-[#F2F7EB] text-[#33650E]">
-                    14 Consults
-                  </span>
-                  <span className="px-2 py-0.5 rounded-md bg-[#F2F7EB] text-[#33650E]">
-                    28 Labs
-                  </span>
-                  <span className="px-2 py-0.5 rounded-md bg-[#FFF5E5] text-[#985C12] flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#985C12]"></span> 1 Flagged
-                  </span>
-                </div>
-              </div>
-
-              {/* Layered Panel 3: Bottom Right Active Consent Pill */}
-              <div
-                onClick={() => onNavigate('/patient/consents')}
-                className="cursor-pointer absolute bottom-7 right-7 bg-[#33650E] text-[#FFFFFF] px-3.5 py-2 rounded-full shadow-md flex items-center gap-2 hover:bg-[#28510B] transition-colors"
-              >
-                <span className="material-symbols-outlined text-[16px] text-[#bdef81]">
-                  verified_user
-                </span>
-                <span className="text-[12px] font-semibold">Active Consent: Dr. Vance (30d pass)</span>
               </div>
             </div>
           </div>
@@ -177,7 +116,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
       </section>
 
       {/* ================= THREE-STEP PROCESS STRIP ================= */}
-      <section className="w-full bg-[#F2F7EB] py-16 lg:py-20 border-y border-[#DFE5D8]" id="how-it-works">
+      <section className="w-full bg-[#F2F7EB] py-16 lg:py-20 border-y border-[#DFE5D8] scroll-mt-20" id="how-it-works">
         <div className="max-w-7xl mx-auto px-6 lg:px-12">
           {/* Section Header */}
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
@@ -276,7 +215,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
       </section>
 
       {/* ================= SIGNATURE CAPABILITIES (5-CARD BENTO) ================= */}
-      <section className="w-full max-w-7xl mx-auto px-6 lg:px-12 py-20 lg:py-24" id="features">
+      <section className="w-full max-w-7xl mx-auto px-6 lg:px-12 py-20 lg:py-24 scroll-mt-20" id="features">
         <div className="text-center max-w-3xl mx-auto mb-16">
           <span className="text-[11px] tracking-widest text-[#33650E] font-bold uppercase">
             BETTER RECORDS. BETTER CONTINUITY.
@@ -635,7 +574,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
       </section>
 
       {/* ================= FAQ SECTION ================= */}
-      <section className="w-full max-w-4xl mx-auto px-6 lg:px-12 pb-16" id="faq">
+      <section className="w-full max-w-4xl mx-auto px-6 lg:px-12 pb-16 scroll-mt-20" id="faq">
         <div className="text-center mb-10">
           <span className="text-[11px] tracking-widest text-[#33650E] font-bold uppercase">
             FREQUENTLY ASKED QUESTIONS

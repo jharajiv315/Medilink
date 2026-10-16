@@ -1,157 +1,206 @@
 import React, { useState } from 'react';
+import { ArrowRight, LockKeyhole, UserRoundPlus } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.tsx';
 
 interface LoginPageProps {
   onNavigate: (path: string) => void;
+  redirectTo?: string;
 }
 
-export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
-  const { allUsers, switchUser } = useAuth();
-  const [selectedUserId, setSelectedUserId] = useState('user-ananya');
+type AuthMode = 'signin' | 'signup';
+
+export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, redirectTo }) => {
+  const { login, registerPatient } = useAuth();
+  const [mode, setMode] = useState<AuthMode>('signin');
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [birthDate, setBirthDate] = useState('');
+  const [gender, setGender] = useState('');
+  const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = async (userId: string) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError('');
+    if (mode === 'signup' && password !== confirmPassword) {
+      setError('The passwords do not match.');
+      return;
+    }
+
     setIsLoading(true);
     try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId })
-      });
-      const data = await res.json();
-      if (data.user) {
-        switchUser(data.user.id);
-        if (data.user.role === 'patient') {
-          onNavigate('/patient/dashboard');
-        } else if (data.user.role === 'clinician') {
-          onNavigate('/clinic/dashboard');
-        } else {
-          onNavigate('/patient/access-history');
-        }
-      }
-    } catch {
-      switchUser(userId);
-      onNavigate(userId === 'user-dr-vance' ? '/clinic/dashboard' : '/patient/dashboard');
+      const user = mode === 'signup'
+        ? await registerPatient({ name, email, password, birthDate, gender })
+        : await login(email, password);
+      const canUseRedirect = redirectTo && (
+        (user.role === 'patient' && redirectTo.startsWith('/patient/')) ||
+        (user.role === 'clinician' && redirectTo.startsWith('/clinic/')) ||
+        user.role === 'admin'
+      );
+      onNavigate(canUseRedirect
+        ? redirectTo
+        : user.role === 'clinician'
+          ? '/clinic/dashboard'
+          : user.role === 'admin'
+            ? '/patient/access-history'
+            : '/patient/dashboard');
+    } catch (authError) {
+      setError(authError instanceof Error ? authError.message : 'Unable to sign in. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-[80vh] flex items-center justify-center px-6 py-16 bg-[#f7fbf0]">
-      <div className="w-full max-w-xl bg-[#FFFFFF] rounded-3xl border border-[#DFE5D8] p-8 sm:p-10 shadow-lg">
-        <div className="text-center mb-8">
+    <div className="min-h-[80vh] flex items-center justify-center px-4 sm:px-6 py-12 sm:py-16 bg-[#f7fbf0]">
+      <div className="w-full max-w-lg bg-white rounded-3xl border border-[#DFE5D8] p-6 sm:p-9 shadow-lg">
+        <div className="text-center mb-7">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#F2F7EB] text-[#33650E] text-[12px] font-bold border border-[#DFE5D8] mb-3">
-            <span className="w-2 h-2 rounded-full bg-[#78A541]"></span>
-            <span>Healthcare Identity Gateway</span>
+            {mode === 'signin' ? <LockKeyhole className="w-3.5 h-3.5" /> : <UserRoundPlus className="w-3.5 h-3.5" />}
+            <span>Secure healthcare account</span>
           </div>
           <h1 className="font-['Plus_Jakarta_Sans'] text-[28px] font-bold text-[#0B0808]">
-            Sign in to MediLink
+            {mode === 'signin' ? 'Sign in to MediLink' : 'Create your patient account'}
           </h1>
-          <p className="font-['DM_Sans'] text-[14px] text-[#42493b] mt-1">
-            Choose a verified demo persona to test patient consent, medical timeline, or clinician
-            handoff workflows.
+          <p className="text-[14px] text-[#596253] mt-2">
+            {mode === 'signin'
+              ? 'Use the email and password associated with your account.'
+              : 'Your account starts with a private, empty medical record.'}
           </p>
         </div>
 
-        {/* Demo Personas List */}
-        <div className="space-y-3 mb-6">
-          {allUsers.map(user => {
-            const isSelected = selectedUserId === user.id;
-            return (
-              <div
-                key={user.id}
-                onClick={() => setSelectedUserId(user.id)}
-                className={`p-4 rounded-2xl border cursor-pointer transition-all flex items-center justify-between ${
-                  isSelected
-                    ? 'border-[#33650E] bg-[#F2F7EB] shadow-sm'
-                    : 'border-[#DFE5D8] hover:bg-[#F4F5F1]'
-                }`}
-              >
-                <div className="flex items-center gap-3.5">
-                  <div
-                    className={`w-11 h-11 rounded-xl flex items-center justify-center font-bold text-[14px] ${
-                      user.role === 'patient'
-                        ? 'bg-[#33650E] text-[#FFFFFF]'
-                        : user.role === 'clinician'
-                        ? 'bg-[#214c00] text-[#FFFFFF]'
-                        : 'bg-[#484D45] text-[#FFFFFF]'
-                    }`}
-                  >
-                    {user.name
-                      .split(' ')
-                      .map(n => n[0])
-                      .join('')}
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-['Plus_Jakarta_Sans'] font-bold text-[15px] text-[#0B0808]">
-                        {user.name}
-                      </h3>
-                      <span
-                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${
-                          user.role === 'patient'
-                            ? 'bg-[#e5eadf] text-[#33650E]'
-                            : user.role === 'clinician'
-                            ? 'bg-[#bdef81] text-[#214c00]'
-                            : 'bg-[#e0e4d9] text-[#181d16]'
-                        }`}
-                      >
-                        {user.role}
-                      </span>
-                    </div>
-                    <p className="font-['DM_Sans'] text-[12px] text-[#42493b] mt-0.5">
-                      {user.role === 'patient'
-                        ? 'Patient with 3 connected providers & 1 penicillin allergy discrepancy'
-                        : user.role === 'clinician'
-                        ? 'Attending Physician at Sutter Health requesting patient records'
-                        : 'Compliance Officer monitoring immutable audit trail and access grants'}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ml-2 border-[#33650E]">
-                  {isSelected && <div className="w-2.5 h-2.5 rounded-full bg-[#33650E]"></div>}
-                </div>
-              </div>
-            );
-          })}
+        <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-[#F3F7EE] border border-[#DCE4D5] mb-6" role="tablist" aria-label="Account access">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={mode === 'signin'}
+            onClick={() => { setMode('signin'); setError(''); }}
+            className={`py-2.5 rounded-lg text-[13px] font-semibold transition-colors ${mode === 'signin' ? 'bg-white text-[#214D09] shadow-sm' : 'text-[#596253]'}`}
+          >
+            Sign In
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={mode === 'signup'}
+            onClick={() => { setMode('signup'); setError(''); }}
+            className={`py-2.5 rounded-lg text-[13px] font-semibold transition-colors ${mode === 'signup' ? 'bg-white text-[#214D09] shadow-sm' : 'text-[#596253]'}`}
+          >
+            Patient Sign Up
+          </button>
         </div>
 
-        {/* Submit Button */}
-        <button
-          onClick={() => handleLogin(selectedUserId)}
-          disabled={isLoading}
-          className="w-full bg-[#33650E] hover:bg-[#28510B] text-[#FFFFFF] font-['DM_Sans'] font-semibold py-3.5 rounded-xl transition-all shadow-md flex items-center justify-center gap-2 text-[15px] active:scale-[0.99]"
-        >
-          {isLoading ? (
-            <span>Authenticating...</span>
-          ) : (
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {mode === 'signup' && (
             <>
-              <span>
-                Enter as{' '}
-                {selectedUserId === 'user-ananya'
-                  ? 'Patient (Ananya)'
-                  : selectedUserId === 'user-dr-vance'
-                  ? 'Clinician (Dr. Vance)'
-                  : 'Compliance Officer'}
-              </span>
-              <span className="material-symbols-outlined text-[18px]">login</span>
+              <label className="block text-[12px] font-semibold text-[#3F4939]">
+                Full name
+                <input
+                  autoComplete="name"
+                  required
+                  minLength={2}
+                  maxLength={100}
+                  value={name}
+                  onChange={event => setName(event.target.value)}
+                  className="mt-1.5 w-full rounded-xl border border-[#DCE4D5] px-3.5 py-3 text-[14px] text-[#161B14] outline-none focus:border-[#78A541] focus:ring-2 focus:ring-[#78A541]/20"
+                />
+              </label>
+              <div className="grid sm:grid-cols-2 gap-3">
+                <label className="block text-[12px] font-semibold text-[#3F4939]">
+                  Date of birth
+                  <input
+                    type="date"
+                    autoComplete="bday"
+                    required
+                    max={new Date().toISOString().slice(0, 10)}
+                    value={birthDate}
+                    onChange={event => setBirthDate(event.target.value)}
+                    className="mt-1.5 w-full rounded-xl border border-[#DCE4D5] px-3.5 py-3 text-[14px] text-[#161B14] outline-none focus:border-[#78A541] focus:ring-2 focus:ring-[#78A541]/20"
+                  />
+                </label>
+                <label className="block text-[12px] font-semibold text-[#3F4939]">
+                  Gender
+                  <select
+                    required
+                    value={gender}
+                    onChange={event => setGender(event.target.value)}
+                    className="mt-1.5 w-full rounded-xl border border-[#DCE4D5] bg-white px-3.5 py-3 text-[14px] text-[#161B14] outline-none focus:border-[#78A541] focus:ring-2 focus:ring-[#78A541]/20"
+                  >
+                    <option value="" disabled>Select an option</option>
+                    <option value="Female">Female</option>
+                    <option value="Male">Male</option>
+                    <option value="Non-binary">Non-binary</option>
+                    <option value="Prefer not to say">Prefer not to say</option>
+                  </select>
+                </label>
+              </div>
             </>
           )}
-        </button>
 
-        <div className="mt-6 pt-5 border-t border-[#DFE5D8] flex items-center justify-between text-[11px] text-[#667065]">
-          <span className="flex items-center gap-1">
-            <span className="material-symbols-outlined text-[14px] text-[#33650E]">lock</span>
-            Zero-knowledge session simulation
-          </span>
+          <label className="block text-[12px] font-semibold text-[#3F4939]">
+            Email address
+            <input
+              type="email"
+              autoComplete="email"
+              required
+              maxLength={254}
+              value={email}
+              onChange={event => setEmail(event.target.value)}
+              className="mt-1.5 w-full rounded-xl border border-[#DCE4D5] px-3.5 py-3 text-[14px] text-[#161B14] outline-none focus:border-[#78A541] focus:ring-2 focus:ring-[#78A541]/20"
+            />
+          </label>
+
+          <label className="block text-[12px] font-semibold text-[#3F4939]">
+            Password
+            <input
+              type="password"
+              autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
+              required
+              minLength={12}
+              maxLength={256}
+              value={password}
+              onChange={event => setPassword(event.target.value)}
+              className="mt-1.5 w-full rounded-xl border border-[#DCE4D5] px-3.5 py-3 text-[14px] text-[#161B14] outline-none focus:border-[#78A541] focus:ring-2 focus:ring-[#78A541]/20"
+            />
+            {mode === 'signup' && <span className="block mt-1 text-[11px] font-normal text-[#667065]">Use at least 12 characters.</span>}
+          </label>
+
+          {mode === 'signup' && (
+            <label className="block text-[12px] font-semibold text-[#3F4939]">
+              Confirm password
+              <input
+                type="password"
+                autoComplete="new-password"
+                required
+                minLength={12}
+                maxLength={256}
+                value={confirmPassword}
+                onChange={event => setConfirmPassword(event.target.value)}
+                className="mt-1.5 w-full rounded-xl border border-[#DCE4D5] px-3.5 py-3 text-[14px] text-[#161B14] outline-none focus:border-[#78A541] focus:ring-2 focus:ring-[#78A541]/20"
+              />
+            </label>
+          )}
+
+          {error && <div role="alert" className="rounded-xl border border-[#F0C9C6] bg-[#FFF0EF] px-3.5 py-3 text-[13px] text-[#A33837]">{error}</div>}
+
           <button
-            onClick={() => onNavigate('/')}
-            className="text-[#33650E] hover:underline font-semibold"
+            type="submit"
+            disabled={isLoading}
+            className="w-full bg-[#33650E] hover:bg-[#28510B] disabled:opacity-60 text-white font-semibold py-3.5 rounded-xl transition-colors shadow-sm flex items-center justify-center gap-2 text-[14px]"
           >
-            ← Back to Home
+            <span>{isLoading ? 'Please wait…' : mode === 'signin' ? 'Sign In' : 'Create Account'}</span>
+            {!isLoading && <ArrowRight className="w-4 h-4" />}
           </button>
+        </form>
+
+        <div className="mt-5 rounded-xl bg-[#F7F9F4] border border-[#E5EADF] px-3.5 py-3 text-[11.5px] leading-relaxed text-[#667065]">
+          Clinician accounts are provisioned by the MediLink administrator. Sign in with the credentials issued to you.
+        </div>
+
+        <div className="mt-5 pt-4 border-t border-[#DFE5D8] text-center text-[12px] text-[#667065]">
+          <button onClick={() => onNavigate('/')} className="text-[#33650E] hover:underline font-semibold">Back to Home</button>
         </div>
       </div>
     </div>

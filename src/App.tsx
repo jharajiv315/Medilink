@@ -20,7 +20,7 @@ function AppContent() {
     return window.location.pathname || '/';
   });
 
-  const { currentUser } = useAuth();
+  const { currentUser, isAuthenticated, isLoading } = useAuth();
 
   useEffect(() => {
     const handlePopState = () => {
@@ -30,29 +30,26 @@ function AppContent() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  const navigate = (path: string) => {
-    if (path === currentPath) return;
+  useEffect(() => {
+    if (currentPath !== '/' || !window.location.hash) return;
+    const frame = window.requestAnimationFrame(() => {
+      document.getElementById(decodeURIComponent(window.location.hash.slice(1)))?.scrollIntoView();
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [currentPath]);
 
+  const navigate = (path: string) => {
     if (path.startsWith('/#')) {
-      const id = path.replace('/#', '');
-      if (currentPath === '/' || currentPath === '') {
-        const el = document.getElementById(id);
-        if (el) {
-          el.scrollIntoView({ behavior: 'smooth' });
-          return;
-        }
+      window.history.pushState({}, '', path);
+      if (currentPath === '/') {
+        document.getElementById(decodeURIComponent(path.slice(2)))?.scrollIntoView({ behavior: 'smooth' });
       } else {
-        window.history.pushState({}, '', '/');
         setCurrentPath('/');
-        setTimeout(() => {
-          const el = document.getElementById(id);
-          if (el) {
-            el.scrollIntoView({ behavior: 'smooth' });
-          }
-        }, 100);
-        return;
       }
+      return;
     }
+
+    if (path === currentPath && !window.location.hash) return;
 
     window.history.pushState({}, '', path);
     setCurrentPath(path);
@@ -61,6 +58,25 @@ function AppContent() {
 
   // Route matching
   const renderScreen = () => {
+    const patientRoute = currentPath.startsWith('/patient/');
+    const clinicRoute = currentPath.startsWith('/clinic/');
+
+    if (isLoading) {
+      return <div className="min-h-[60vh] flex items-center justify-center text-sm text-[#667065]">Checking your session…</div>;
+    }
+
+    if (!isAuthenticated && currentPath !== '/' && currentPath !== '/login' && currentPath !== '/unauthorized') {
+      return <LoginPage onNavigate={navigate} redirectTo={currentPath} />;
+    }
+
+    if (isAuthenticated && patientRoute && currentUser.role !== 'patient' && currentUser.role !== 'admin') {
+      return <Unauthorized onNavigate={navigate} />;
+    }
+
+    if (isAuthenticated && clinicRoute && currentUser.role !== 'clinician' && currentUser.role !== 'admin') {
+      return <Unauthorized onNavigate={navigate} />;
+    }
+
     if (currentPath === '/' || currentPath === '') {
       return <LandingPage onNavigate={navigate} />;
     }

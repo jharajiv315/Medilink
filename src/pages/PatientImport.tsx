@@ -7,15 +7,18 @@ interface PatientImportProps {
 
 export const PatientImport: React.FC<PatientImportProps> = ({ onNavigate }) => {
   const { currentUser, getAuthHeaders } = useAuth();
-  const patientId = currentUser.patientId || 'DEMO-P001';
+  const patientId = currentUser.patientId!;
+  const isSeedDemoPatient = currentUser.patientId === 'DEMO-P001';
 
-  const [sourceOrg, setSourceOrg] = useState('Hospital A (Memorial Health)');
+  const [sourceOrg, setSourceOrg] = useState(isSeedDemoPatient ? 'Hospital A (Memorial Health)' : '');
   const [docCategory, setDocCategory] = useState<'discharge_summary' | 'specialty_consult' | 'lab_report' | 'prescription_order' | 'allergy_challenge'>('discharge_summary');
-  const [docTitle, setDocTitle] = useState('Hospital A Discharge Summary');
-  const [clinicalDate, setClinicalDate] = useState('2026-01-10');
-  const [fileName, setFileName] = useState('HospitalA_Discharge_Summary.pdf');
+  const [docTitle, setDocTitle] = useState(isSeedDemoPatient ? 'Hospital A Discharge Summary' : '');
+  const [clinicalDate, setClinicalDate] = useState(isSeedDemoPatient ? '2026-01-10' : new Date().toISOString().slice(0, 10));
+  const [fileName, setFileName] = useState(isSeedDemoPatient ? 'HospitalA_Discharge_Summary.pdf' : '');
   const [rawText, setRawText] = useState(
-    'ADMISSION DIAGNOSIS: Acute viral gastroenteritis with dehydration.\nALLERGIES: Penicillin allergy — rash and hives reported following childhood amoxicillin.\nHOSPITAL COURSE: Rehydrated with IV fluids. Discharged in stable condition.'
+    isSeedDemoPatient
+      ? 'ADMISSION DIAGNOSIS: Acute viral gastroenteritis with dehydration.\nALLERGIES: Penicillin allergy — rash and hives reported following childhood amoxicillin.\nHOSPITAL COURSE: Rehydrated with IV fluids. Discharged in stable condition.'
+      : ''
   );
 
   const [isProcessing, setIsProcessing] = useState(false);
@@ -170,7 +173,7 @@ export const PatientImport: React.FC<PatientImportProps> = ({ onNavigate }) => {
       </div>
 
       {/* Preset Fast-Loader */}
-      <div className="bg-[#FFFFFF] rounded-2xl p-5 border border-[#DFE5D8] shadow-sm">
+      {isSeedDemoPatient && <div className="bg-[#FFFFFF] rounded-2xl p-5 border border-[#DFE5D8] shadow-sm">
         <span className="text-[11px] font-bold text-[#667065] uppercase tracking-wider block mb-3">
           Quick Load Verified Clinical Presets
         </span>
@@ -218,7 +221,7 @@ export const PatientImport: React.FC<PatientImportProps> = ({ onNavigate }) => {
             </p>
           </button>
         </div>
-      </div>
+      </div>}
 
       {/* Ingestion Form */}
       <form onSubmit={handleIngest} className="bg-[#FFFFFF] rounded-3xl p-6 sm:p-8 border border-[#DFE5D8] shadow-sm space-y-6">

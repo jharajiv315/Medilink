@@ -130,6 +130,7 @@ export type GrantStatus = 'pending' | 'active' | 'expired' | 'revoked' | 'reject
 
 export interface AccessGrant {
   id: string;
+  requesterUserId?: string;
   patientId: string;
   patientName: string;
   requestingOrgId: string;

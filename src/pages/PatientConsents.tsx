@@ -8,7 +8,7 @@ interface PatientConsentsProps {
 
 export const PatientConsents: React.FC<PatientConsentsProps> = ({ onNavigate }) => {
   const { currentUser, getAuthHeaders } = useAuth();
-  const patientId = currentUser.patientId || 'DEMO-P001';
+  const patientId = currentUser.patientId!;
 
   const [grants, setGrants] = useState<AccessGrant[]>([]);
   const [activeTab, setActiveTab] = useState<'active' | 'pending' | 'expired' | 'revoked'>('active');
