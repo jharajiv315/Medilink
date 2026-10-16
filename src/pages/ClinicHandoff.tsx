@@ -152,7 +152,7 @@ export const ClinicHandoff: React.FC<ClinicHandoffProps> = ({ grantId, onNavigat
   const conflicts = data.conflicts || [];
 
   return (
-    <div className="max-w-7xl mx-auto px-6 lg:px-12 py-8 space-y-6">
+    <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-6 sm:py-8 space-y-6 overflow-x-hidden">
       {/* Top Clinical Banner */}
       <div className="bg-[#FFFFFF] rounded-2xl p-5 border border-[#DFE5D8] shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-3.5">
@@ -212,7 +212,7 @@ export const ClinicHandoff: React.FC<ClinicHandoffProps> = ({ grantId, onNavigat
                 </span>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 text-[13px]">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[13px]">
                 <div className="p-3 rounded-xl bg-[#F4F5F1] border border-[#DFE5D8]">
                   <span className="text-[11px] text-[#667065] font-bold uppercase block">
                     Endocrine Status

@@ -688,7 +688,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath, onNavigate }) => {
 
         {/* ================= MOBILE DRAWER ================= */}
         {mobileMenuOpen && (
-          <div className="xl:hidden bg-white/98 backdrop-blur-2xl border-b border-[#DCE4D5] px-5 py-4 space-y-4 shadow-xl animate-in slide-in-from-top-3 duration-200">
+          <div className="xl:hidden bg-white border-b border-[#DCE4D5] px-5 py-4 space-y-4 shadow-xl">
             {/* Active User Persona Banner */}
             <div className="p-3 bg-[#F4F8EE] rounded-2xl border border-[#D5E1CC] flex items-center justify-between">
               <div className="flex items-center gap-3">
