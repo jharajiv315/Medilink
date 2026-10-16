@@ -1,0 +1,6 @@
+{
+  "name": "MediLink",
+  "description": "Healthcare continuity platform uniting fragmented patient records, patient-controlled consent, and evidence-linked clinical discrepancy detection.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
