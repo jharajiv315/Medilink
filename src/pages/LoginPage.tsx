@@ -11,7 +11,7 @@ type AuthMode = 'patient-signin' | 'clinical-signin' | 'signup';
 
 export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, redirectTo }) => {
   const { login, registerPatient, logout } = useAuth();
-  const [mode, setMode] = useState<AuthMode>('patient-signin');
+  const [mode, setMode] = useState<AuthMode>(redirectTo?.startsWith('/clinic/') || redirectTo?.startsWith('/admin/') ? 'clinical-signin' : 'patient-signin');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

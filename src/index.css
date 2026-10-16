@@ -33,6 +33,7 @@
 
   html {
     scrollbar-gutter: stable;
+    scroll-padding-top: 96px;
   }
 
   body {
@@ -47,6 +48,32 @@
     font-family: var(--font-headline);
     color: var(--ink);
     letter-spacing: -0.015em;
+  }
+
+  button, a, input, select, textarea {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  button:not(:disabled), a { cursor: pointer; }
+
+  :focus-visible {
+    outline: 2px solid var(--forest);
+    outline-offset: 4px;
+  }
+
+  input, select, textarea { accent-color: var(--forest); }
+
+  ::selection { background: var(--sage); color: var(--forest-deep); }
+
+  main { min-width: 0; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }
 

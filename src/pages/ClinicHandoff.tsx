@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext.tsx';
 import type { Patient, AccessGrant, DiscrepancyConflict, ClinicalDocument, MedicalFact } from '../types/medilink.ts';
 import { Ban, Activity, LockKeyhole, Pill, FolderOpen, FileText, TriangleAlert, CircleCheck, ClipboardCheck, BadgeCheck } from 'lucide-react';
@@ -23,6 +23,8 @@ export const ClinicHandoff: React.FC<ClinicHandoffProps> = ({ grantId, onNavigat
     status?: string;
   }>({});
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [saveError, setSaveError] = useState('');
 
   // Clinician reconciliation form state
   const [resolutionChoice, setResolutionChoice] = useState(
@@ -34,24 +36,38 @@ export const ClinicHandoff: React.FC<ClinicHandoffProps> = ({ grantId, onNavigat
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [reconciledSuccess, setReconciledSuccess] = useState(false);
 
-  const loadHandoffData = () => {
-    fetch(`/api/clinic/handoff/${grantId}`, {
-      headers: getAuthHeaders()
+  const loadHandoffData = useCallback((signal?: AbortSignal) => {
+    setLoadError('');
+    return fetch(`/api/clinic/handoff/${encodeURIComponent(grantId)}`, {
+      headers: getAuthHeaders(), signal
     })
       .then(async res => {
         const json = await res.json();
+        if (!res.ok) throw new Error(json.message || json.error || 'Unable to load this handoff.');
+        if (!json.patient || !json.grant) throw new Error('The server returned an incomplete handoff.');
         setData(json);
         setLoading(false);
       })
-      .catch(() => setLoading(false));
-  };
+      .catch(error => {
+        if (signal?.aborted) return;
+        setLoadError(error.message || 'Unable to connect. Please try again.');
+        setLoading(false);
+      });
+  }, [grantId, getAuthHeaders]);
 
   useEffect(() => {
-    loadHandoffData();
-  }, [grantId]);
+    const controller = new AbortController();
+    setLoading(true);
+    setData({});
+    setReconciledSuccess(false);
+    setSaveError('');
+    void loadHandoffData(controller.signal);
+    return () => controller.abort();
+  }, [loadHandoffData]);
 
   const handleReconcile = async (conflictId: string) => {
     setIsSubmitting(true);
+    setSaveError('');
     try {
       const res = await fetch(`/api/clinic/handoff/${grantId}/reconcile`, {
         method: 'POST',
@@ -65,12 +81,13 @@ export const ClinicHandoff: React.FC<ClinicHandoffProps> = ({ grantId, onNavigat
 
       if (res.ok) {
         setReconciledSuccess(true);
-        loadHandoffData();
+        await loadHandoffData();
       } else {
-        alert('Reconciliation failed.');
+        const result = await res.json().catch(() => ({}));
+        setSaveError(result.error || 'Reconciliation could not be saved. Please try again.');
       }
     } catch {
-      alert('Error saving reconciliation to clinical ledger.');
+      setSaveError('Unable to connect. Your reconciliation was not saved. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -83,6 +100,19 @@ export const ClinicHandoff: React.FC<ClinicHandoffProps> = ({ grantId, onNavigat
       </div>
     );
   }
+
+  if (loadError) return (
+    <div className="max-w-3xl mx-auto px-6 py-16">
+      <div className="rounded-3xl border border-[#DFE5D8] bg-white p-8 text-center shadow-sm" role="alert">
+        <h1 className="text-2xl font-bold">Handoff unavailable</h1>
+        <p className="mt-3 text-sm text-[#667065]">{loadError}</p>
+        <div className="mt-6 flex flex-wrap justify-center gap-3">
+          <button onClick={() => { setLoading(true); void loadHandoffData(); }} className="rounded-xl bg-[#33650E] px-5 py-3 text-sm font-semibold text-white">Try again</button>
+          <button onClick={() => onNavigate('/clinic/dashboard')} className="rounded-xl border border-[#DFE5D8] px-5 py-3 text-sm font-semibold">Back to workspace</button>
+        </div>
+      </div>
+    </div>
+  );
 
   // HARD SECURITY CHECK: Access Denied / Revoked Screen
   if (data.error) {
@@ -118,12 +148,6 @@ export const ClinicHandoff: React.FC<ClinicHandoffProps> = ({ grantId, onNavigat
             >
               Back to Clinic Workspace
             </button>
-            <button
-              onClick={() => onNavigate('/patient/access-history')}
-              className="bg-[#F2F7EB] text-[#33650E] border border-[#DFE5D8] text-[14px] font-semibold px-5 py-2.5 rounded-xl"
-            >
-              Inspect Audit Log
-            </button>
           </div>
         </div>
       </div>
@@ -138,6 +162,7 @@ export const ClinicHandoff: React.FC<ClinicHandoffProps> = ({ grantId, onNavigat
 
   return (
     <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-8 space-y-6 overflow-x-hidden">
+      {saveError && <div role="alert" className="rounded-2xl border border-[#A33837]/20 bg-[#FFF0EF] p-4 text-sm text-[#A33837]">{saveError}</div>}
       {/* Top Clinical Banner */}
       <div className="bg-[#FFFFFF] rounded-3xl p-6 sm:p-8 border border-[#DFE5D8] shadow-sm space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">

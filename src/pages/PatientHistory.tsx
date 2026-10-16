@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext.tsx';
+import { Modal } from '../components/ui/Modal.tsx';
 import type { AccessCategory } from '../types/medilink.ts';
 
 interface TimelineItem {
@@ -70,11 +71,11 @@ export const PatientHistory: React.FC<PatientHistoryProps> = ({ onNavigate }) =>
             Medical History Timeline
           </h1>
           <p className="font-['DM_Sans'] text-[15px] text-[#42493b] mt-1">
-            Chronological clinical record bridging 3 health systems with source-level provenance.
+            Your clinical records in one timeline, with their original sources.
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <button
             onClick={() => onNavigate('/patient/import')}
             className="inline-flex items-center gap-2 bg-[#33650E] hover:bg-[#28510B] text-[#FFFFFF] text-[14px] font-semibold px-4 py-2.5 rounded-xl shadow-sm transition-all"
@@ -87,7 +88,7 @@ export const PatientHistory: React.FC<PatientHistoryProps> = ({ onNavigate }) =>
             className="inline-flex items-center gap-1.5 bg-[#FFF5E5] text-[#985C12] border border-[#985C12]/20 text-[14px] font-semibold px-4 py-2.5 rounded-xl hover:bg-[#ffe9c7] transition-colors"
           >
             <span className="material-symbols-outlined text-[18px]">warning</span>
-            <span>1 Discrepancy</span>
+            <span>Review discrepancies</span>
           </button>
         </div>
       </div>
@@ -100,6 +101,7 @@ export const PatientHistory: React.FC<PatientHistoryProps> = ({ onNavigate }) =>
             search
           </span>
           <input
+            aria-label="Search medical history"
             type="text"
             placeholder="Search encounters, drugs, labs..."
             value={searchQuery}
@@ -198,13 +200,13 @@ export const PatientHistory: React.FC<PatientHistoryProps> = ({ onNavigate }) =>
                     )}
 
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 text-[12px] text-[#667065]">
-                      <div className="flex items-center gap-2">
+                      <div className="flex min-w-0 flex-wrap items-center gap-2">
                         <span className="material-symbols-outlined text-[16px] text-[#33650E]">
                           domain
                         </span>
                         <span className="font-semibold text-[#0B0808]">{item.sourceOrg}</span>
                         <span>•</span>
-                        <span className="font-mono">{item.documentRef}</span>
+                        <span className="font-mono break-all">{item.documentRef}</span>
                       </div>
 
                       <button
@@ -225,8 +227,8 @@ export const PatientHistory: React.FC<PatientHistoryProps> = ({ onNavigate }) =>
 
       {/* Provenance Detail Modal */}
       {activeModalItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-[#FFFFFF] w-full max-w-xl rounded-3xl border border-[#DFE5D8] p-6 sm:p-8 shadow-2xl relative space-y-5">
+        <Modal isOpen onClose={() => setActiveModalItem(null)} title="Source provenance" maxWidth="lg">
+          <div className="space-y-5">
             <div className="flex items-start justify-between pb-4 border-b border-[#DFE5D8]">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-[#F2F7EB] text-[#33650E] flex items-center justify-center">
@@ -242,6 +244,7 @@ export const PatientHistory: React.FC<PatientHistoryProps> = ({ onNavigate }) =>
                 </div>
               </div>
               <button
+                aria-label="Close provenance"
                 onClick={() => setActiveModalItem(null)}
                 className="p-1 rounded-lg text-[#72796a] hover:bg-[#F4F5F1]"
               >
@@ -274,7 +277,7 @@ export const PatientHistory: React.FC<PatientHistoryProps> = ({ onNavigate }) =>
                 <span className="font-bold text-[#667065] text-[11px] uppercase tracking-wider block">
                   Original Document Citation
                 </span>
-                <p className="font-mono text-[12px] text-[#0B0808] bg-[#F2F7EB] p-3 rounded-xl border border-[#DFE5D8] mt-1">
+                <p className="font-mono break-all text-[12px] text-[#0B0808] bg-[#F2F7EB] p-3 rounded-xl border border-[#DFE5D8] mt-1">
                   {activeModalItem.documentRef}
                 </p>
               </div>
@@ -284,7 +287,7 @@ export const PatientHistory: React.FC<PatientHistoryProps> = ({ onNavigate }) =>
                   Cryptographic Integrity (SHA-256)
                 </span>
                 <p className="font-mono text-[11px] text-[#33650E] bg-[#F2F7EB] p-2.5 rounded-lg border border-[#DFE5D8] break-all mt-1">
-                  {activeModalItem.sha256Hash || 'a87f1c34e892d47f12e0938b8d4f0b99c1e95b078a6311de17cb1209e99a22f1'}
+                  {activeModalItem.sha256Hash || 'No source hash available for this record.'}
                 </p>
               </div>
             </div>
@@ -298,7 +301,7 @@ export const PatientHistory: React.FC<PatientHistoryProps> = ({ onNavigate }) =>
               </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

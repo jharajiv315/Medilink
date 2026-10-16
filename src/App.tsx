@@ -124,14 +124,21 @@ function AppContent() {
       return <Unauthorized onNavigate={navigate} />;
     }
 
-    // Default to LandingPage
-    return <LandingPage onNavigate={navigate} />;
+    return (
+      <div className="max-w-2xl mx-auto px-6 py-20 text-center">
+        <p className="text-sm font-semibold text-[#33650E]">404 · Page not found</p>
+        <h1 className="mt-3 text-3xl font-bold">This page isn’t available</h1>
+        <p className="mt-3 text-[#667065]">Check the address or return to MediLink.</p>
+        <button onClick={() => navigate('/')} className="mt-6 rounded-xl bg-[#33650E] px-6 py-3 font-semibold text-white">Back to home</button>
+      </div>
+    );
   };
 
   return (
     <div className="min-h-screen flex flex-col bg-[#f7fbf0] text-[#181d16] font-['DM_Sans']">
+      <a href="#main-content" className="fixed left-4 top-4 z-[100] -translate-y-24 rounded-xl bg-white px-4 py-3 font-semibold text-[#33650E] shadow-lg focus:translate-y-0">Skip to content</a>
       <Navbar currentPath={currentPath} onNavigate={navigate} />
-      <main className="flex-1 pt-20">
+      <main id="main-content" tabIndex={-1} className="flex-1 pt-20">
         {renderScreen()}
       </main>
       <Footer onNavigate={navigate} />

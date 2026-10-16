@@ -1,10 +1,12 @@
 import React from 'react';
+import { useAuth } from '../context/AuthContext.tsx';
 
 interface FooterProps {
   onNavigate: (path: string) => void;
 }
 
 export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
+  const { currentUser, isAuthenticated } = useAuth();
   return (
     <footer className="w-full bg-[#f1f5ea] border-t border-[#DFE5D8] py-12">
       <div className="max-w-7xl mx-auto px-6 lg:px-12 flex flex-col md:flex-row items-center justify-between gap-6">
@@ -42,12 +44,12 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
         </div>
 
         <div className="flex items-center gap-6">
-          <button
+          {isAuthenticated && currentUser.role !== 'clinician' && <button
             onClick={() => onNavigate('/patient/access-history')}
             className="font-['DM_Sans'] text-[13px] text-[#42493b] hover:text-[#181d16] transition-colors"
           >
             Audit Trail
-          </button>
+          </button>}
           <button
             onClick={() => onNavigate('/#faq')}
             className="font-['DM_Sans'] text-[13px] text-[#42493b] hover:text-[#181d16] transition-colors"

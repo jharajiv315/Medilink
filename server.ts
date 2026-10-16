@@ -807,6 +807,7 @@ app.post('/api/clinic/requests', (req: Request, res: Response) => {
 
 // 10. Clinician Dashboard Data
 app.get('/api/clinic/dashboard', (_req: Request, res: Response) => {
+  if (!allowRoles(_req, res, ['clinician', 'admin'])) return;
   const db = getDb();
   const clinician = getRequestUser(_req);
   const grantsWithStatus = db.grants.map(g => ({
@@ -818,7 +819,12 @@ app.get('/api/clinic/dashboard', (_req: Request, res: Response) => {
   const pendingRequests = grantsWithStatus.filter(g => g.effectiveStatus === 'pending');
   const visiblePatientIds = new Set(activeGrants.map(grant => grant.patientId));
   const visiblePatients = db.patients.filter(patient => visiblePatientIds.has(patient.id));
-  const visibleConflicts = db.conflicts.filter(conflict => visiblePatientIds.has(conflict.patientId));
+  const visibleConflicts = db.conflicts.filter(conflict => activeGrants.some(grant =>
+    grant.patientId === conflict.patientId && (
+      (conflict.conceptKey === 'penicillin' && grant.approvedCategories.includes('Allergies')) ||
+      (conflict.conceptKey === 'metformin' && grant.approvedCategories.includes('Medications'))
+    )
+  ));
 
   res.json({
     clinician,

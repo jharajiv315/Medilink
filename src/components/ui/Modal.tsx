@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useId, useRef } from 'react';
 import { X } from 'lucide-react';
 
 export interface ModalProps {
@@ -18,15 +18,41 @@ export const Modal: React.FC<ModalProps> = ({
   children,
   maxWidth = 'md'
 }) => {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+  const descriptionId = useId();
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
   useEffect(() => {
+    if (!isOpen) return;
+    const previousFocus = document.activeElement as HTMLElement | null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    dialogRef.current?.focus();
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) {
-        onClose();
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        closeRef.current();
+      }
+      if (e.key === 'Tab') {
+        const items = Array.from(dialogRef.current?.querySelectorAll<HTMLElement>('button:not(:disabled), [href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex="0"]') || []).filter(el => el.getClientRects().length);
+        const first = items[0];
+        const last = items.at(-1);
+        if (!first) { e.preventDefault(); return; }
+        if (e.shiftKey && (document.activeElement === first || document.activeElement === dialogRef.current)) {
+          e.preventDefault(); last?.focus();
+        } else if (!e.shiftKey && (document.activeElement === last || document.activeElement === dialogRef.current)) {
+          e.preventDefault(); first.focus();
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = previousOverflow;
+      previousFocus?.focus();
+    };
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -46,8 +72,15 @@ export const Modal: React.FC<ModalProps> = ({
         aria-hidden="true"
       />
 
-      <div className="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
+      <div className="flex min-h-full items-center justify-center p-4 text-center sm:p-0" onClick={event => { if (event.target === event.currentTarget) onClose(); }}>
         <div
+          ref={dialogRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={title ? titleId : undefined}
+          aria-label={title ? undefined : 'Dialog'}
+          aria-describedby={description ? descriptionId : undefined}
+          tabIndex={-1}
           className={`relative transform overflow-hidden rounded-2xl bg-white p-6 sm:p-8 text-left shadow-2xl border border-[#DFE5D8] transition-all w-full ${maxWidthStyles[maxWidth]} my-8`}
           onClick={e => e.stopPropagation()}
         >
@@ -55,19 +88,21 @@ export const Modal: React.FC<ModalProps> = ({
           <div className="flex items-start justify-between pb-4 border-b border-[#DFE5D8] mb-5">
             <div>
               {title && (
-                <h3 className="font-[\x27Plus_Jakarta_Sans\x27] text-lg font-bold text-[#0B0808]">
+                <h3 id={titleId} className="font-headline text-lg font-bold text-[#0B0808]">
                   {title}
                 </h3>
               )}
               {description && (
-                <p className="font-[\x27DM_Sans\x27] text-xs text-[#667065] mt-1">
+                <p id={descriptionId} className="font-body text-xs text-[#667065] mt-1">
                   {description}
                 </p>
               )}
             </div>
             <button
+              type="button"
+              aria-label="Close dialog"
               onClick={onClose}
-              className="rounded-lg p-1 text-[#667065] hover:text-[#0B0808] hover:bg-[#F2F7EB] transition-colors"
+              className="rounded-lg p-3 -mr-2 -mt-2 text-[#667065] hover:text-[#0B0808] hover:bg-[#F2F7EB] transition-colors"
             >
               <X className="w-5 h-5" />
             </button>

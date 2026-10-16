@@ -17,18 +17,42 @@ export const ClinicDashboard: React.FC<ClinicDashboardProps> = ({ onNavigate }) 
     unresolvedDiscrepanciesCount?: number;
   }>({});
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
+    const controller = new AbortController();
+    setLoading(true);
+    setError('');
     fetch('/api/clinic/dashboard', {
-      headers: getAuthHeaders()
+      headers: getAuthHeaders(), signal: controller.signal
     })
-      .then(res => res.json())
+      .then(async res => {
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Unable to load the workspace.');
+        return data;
+      })
       .then(data => {
         setDashboardData(data);
         setLoading(false);
       })
-      .catch(() => setLoading(false));
-  }, []);
+      .catch(error => {
+        if (controller.signal.aborted) return;
+        setError(error.message || 'Unable to connect. Please try again.');
+        setLoading(false);
+      });
+    return () => controller.abort();
+  }, [attempt, getAuthHeaders]);
+
+  if (loading || error) return (
+    <div className="max-w-3xl mx-auto px-6 py-16">
+      <div className="rounded-3xl border border-[#DFE5D8] bg-white p-10 text-center shadow-sm" role={error ? 'alert' : 'status'}>
+        <h1 className="text-xl font-bold">{error ? 'Workspace unavailable' : 'Loading your workspace'}</h1>
+        <p className="mt-3 text-sm text-[#667065]">{error || 'Checking your authorized patient handoffs…'}</p>
+        {error && <button onClick={() => setAttempt(value => value + 1)} className="mt-6 rounded-xl bg-[#33650E] px-5 py-3 text-sm font-semibold text-white">Try again</button>}
+      </div>
+    </div>
+  );
 
   const activeGrants = dashboardData.activeGrants || [];
   const pendingRequests = dashboardData.pendingRequests || [];
@@ -65,13 +89,6 @@ export const ClinicDashboard: React.FC<ClinicDashboardProps> = ({ onNavigate }) 
           >
             <UserRoundPlus className="w-[18px] h-[18px] shrink-0" />
             <span>Request records</span>
-          </button>
-          <button
-            onClick={() => onNavigate('/patient/access-history')}
-            className="inline-flex items-center gap-2 bg-[#F2F7EB] hover:bg-[#ebefe4] text-[#33650E] border border-[#DFE5D8] text-[14px] font-semibold px-4 py-2.5 rounded-xl transition-colors"
-          >
-            <ReceiptText className="w-[18px] h-[18px] shrink-0" />
-            <span>Audit Trail</span>
           </button>
         </div>
       </div>
@@ -146,7 +163,7 @@ export const ClinicDashboard: React.FC<ClinicDashboardProps> = ({ onNavigate }) 
                 className="p-5 sm:p-6 rounded-2xl bg-[#F2F7EB] border border-[#DFE5D8] flex flex-col md:flex-row md:items-center justify-between gap-5 hover:border-[#78A541] transition-all"
               >
                 <div className="space-y-1.5">
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-3">
                     <h3 className="font-['Plus_Jakarta_Sans'] text-[17px] font-bold text-[#0B0808]">
                       {grant.patientName}
                     </h3>

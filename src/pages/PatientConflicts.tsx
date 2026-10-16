@@ -15,19 +15,25 @@ export const PatientConflicts: React.FC<PatientConflictsProps> = ({ onNavigate }
   const [patientNote, setPatientNote] = useState('');
   const [isAffirming, setIsAffirming] = useState(false);
   const [affirmSuccess, setAffirmSuccess] = useState(false);
+  const [error, setError] = useState('');
 
   const loadConflicts = () => {
+    setError('');
     fetch(`/api/patients/${patientId}/conflicts`, {
       headers: getAuthHeaders()
     })
-      .then(res => res.json())
+      .then(async res => {
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Unable to load discrepancies.');
+        return data;
+      })
       .then(data => {
         if (data.conflicts) {
           setConflicts(data.conflicts);
         }
         setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch(error => { setError(error.message || 'Unable to connect. Please try again.'); setLoading(false); });
   };
 
   useEffect(() => {
@@ -36,6 +42,7 @@ export const PatientConflicts: React.FC<PatientConflictsProps> = ({ onNavigate }
 
   const handleAffirm = async (conflictId: string) => {
     setIsAffirming(true);
+    setError('');
     try {
       const res = await fetch(`/api/patients/${patientId}/conflicts/${conflictId}/affirm`, {
         method: 'POST',
@@ -46,9 +53,12 @@ export const PatientConflicts: React.FC<PatientConflictsProps> = ({ onNavigate }
         setAffirmSuccess(true);
         loadConflicts();
         setTimeout(() => setAffirmSuccess(false), 3000);
+      } else {
+        const data = await res.json();
+        setError(data.error || 'Your note could not be saved.');
       }
     } catch {
-      alert('Error updating patient affirmation.');
+      setError('Unable to connect. Your note was not saved.');
     } finally {
       setIsAffirming(false);
     }
@@ -56,6 +66,7 @@ export const PatientConflicts: React.FC<PatientConflictsProps> = ({ onNavigate }
 
   return (
     <div className="max-w-6xl mx-auto px-6 lg:px-12 py-8 space-y-8">
+      {error && <div role="alert" className="rounded-2xl border border-[#A33837]/20 bg-[#FFF0EF] p-4 text-sm text-[#A33837]">{error} <button onClick={loadConflicts} className="ml-2 font-bold underline">Reload</button></div>}
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-[#DFE5D8]">
         <div>
@@ -72,18 +83,18 @@ export const PatientConflicts: React.FC<PatientConflictsProps> = ({ onNavigate }
           </p>
         </div>
 
-        {patientId === 'DEMO-P001' && <button
-          onClick={() => onNavigate('/clinic/handoff/grant-sutter-01')}
+        <button
+          onClick={() => onNavigate('/patient/consents')}
           className="inline-flex items-center gap-2 bg-[#33650E] hover:bg-[#28510B] text-[#FFFFFF] text-[14px] font-semibold px-4 py-2.5 rounded-xl shadow-sm transition-all"
         >
           <span className="material-symbols-outlined text-[18px]">medical_services</span>
-          <span>View as Consulting Clinician</span>
-        </button>}
+          <span>Manage sharing</span>
+        </button>
       </div>
 
       {loading ? (
         <div className="p-8 text-center text-[#667065]">Analyzing clinical records for conflicts...</div>
-      ) : conflicts.length === 0 ? (
+      ) : error ? null : conflicts.length === 0 ? (
         <div className="p-10 text-center bg-[#FFFFFF] rounded-2xl border border-[#DFE5D8]">
           <span className="material-symbols-outlined text-[#33650E] text-[40px] mb-2">
             check_circle

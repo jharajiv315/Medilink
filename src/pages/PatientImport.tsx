@@ -23,6 +23,7 @@ export const PatientImport: React.FC<PatientImportProps> = ({ onNavigate }) => {
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [ingestSuccess, setIngestSuccess] = useState<any | null>(null);
+  const [ingestError, setIngestError] = useState('');
 
   const loadSample = (preset: 'hospitalA' | 'clinicB' | 'cardio' | 'urgent' | 'endocrine') => {
     if (preset === 'hospitalA') {
@@ -132,6 +133,7 @@ export const PatientImport: React.FC<PatientImportProps> = ({ onNavigate }) => {
     }
 
     try {
+      setIngestError('');
       const res = await fetch(`/api/patients/${patientId}/ingest`, {
         method: 'POST',
         headers: getAuthHeaders(),
@@ -147,9 +149,10 @@ export const PatientImport: React.FC<PatientImportProps> = ({ onNavigate }) => {
         })
       });
       const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'The record could not be imported.');
       setIngestSuccess(data);
-    } catch {
-      alert('Error ingesting document to continuity engine.');
+    } catch (error) {
+      setIngestError(error instanceof Error ? error.message : 'Unable to connect. Please try again.');
     } finally {
       setIsProcessing(false);
     }
@@ -157,6 +160,7 @@ export const PatientImport: React.FC<PatientImportProps> = ({ onNavigate }) => {
 
   return (
     <div className="max-w-5xl mx-auto px-6 lg:px-12 py-8 space-y-8">
+      {ingestError && <div role="alert" className="rounded-2xl border border-[#A33837]/20 bg-[#FFF0EF] p-4 text-sm text-[#A33837]">{ingestError}</div>}
       {/* Header */}
       <div>
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#F2F7EB] text-[#33650E] text-[11px] font-bold border border-[#DFE5D8] mb-2">
