@@ -250,6 +250,10 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath, onNavigate }) => {
                     <span className="text-stone-400 text-[10px]">•</span>
                     <span className="text-stone-500 font-normal">Ananya S.</span>
                   </span>
+                ) : currentUser.role === 'admin' ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-[#DCE4D5] bg-white px-2.5 py-1 text-[11px] font-semibold text-[#53614C]">
+                    <ShieldCheck className="h-3 w-3 text-[#33650E]" /> MediLink Administration
+                  </span>
                 ) : (
                   <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#214D09] text-white shadow-xs">
                     <Stethoscope className="w-3 h-3 text-[#BDEF81]" />
@@ -375,6 +379,14 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath, onNavigate }) => {
                     <span>Audit</span>
                   </button>
                 </>
+              ) : currentUser.role === 'admin' ? (
+                <button
+                  onClick={() => onNavigate('/admin/clinicians')}
+                  aria-current={currentPath === '/admin/clinicians' ? 'page' : undefined}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12.5px] font-semibold transition-all duration-200 ${currentPath === '/admin/clinicians' ? 'bg-white text-[#214D09] shadow-sm font-bold ring-1 ring-black/[0.04]' : 'text-[#485244] hover:text-[#0B0808] hover:bg-white/60'}`}
+                >
+                  <User className="h-3.5 w-3.5" /> Doctor Accounts
+                </button>
               ) : (
                 <>
                   <button
@@ -772,6 +784,17 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath, onNavigate }) => {
                     <span>Audit Trail (SHA-256)</span>
                   </button>
                 </>
+              ) : currentUser.role === 'admin' ? (
+                <button
+                  onClick={() => {
+                    onNavigate('/admin/clinicians');
+                    setMobileMenuOpen(false);
+                  }}
+                  aria-current={currentPath === '/admin/clinicians' ? 'page' : undefined}
+                  className={`w-full text-left py-2.5 px-3 rounded-xl font-semibold flex items-center gap-2.5 ${currentPath === '/admin/clinicians' ? 'bg-[#EEF5E6] text-[#214D09] font-bold' : 'text-[#485244]'}`}
+                >
+                  <User className="h-4 w-4" /> Doctor Accounts
+                </button>
               ) : (
                 <>
                   <button

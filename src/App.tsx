@@ -10,6 +10,7 @@ import { PatientHistory } from './pages/PatientHistory.tsx';
 import { PatientConflicts } from './pages/PatientConflicts.tsx';
 import { PatientConsents } from './pages/PatientConsents.tsx';
 import { PatientAccessHistory } from './pages/PatientAccessHistory.tsx';
+import { AdminClinicians } from './pages/AdminClinicians.tsx';
 import { ClinicDashboard } from './pages/ClinicDashboard.tsx';
 import { ClinicAccessRequest } from './pages/ClinicAccessRequest.tsx';
 import { ClinicHandoff } from './pages/ClinicHandoff.tsx';
@@ -60,6 +61,7 @@ function AppContent() {
   const renderScreen = () => {
     const patientRoute = currentPath.startsWith('/patient/');
     const clinicRoute = currentPath.startsWith('/clinic/');
+    const adminRoute = currentPath.startsWith('/admin/');
 
     if (isLoading) {
       return <div className="min-h-[60vh] flex items-center justify-center text-sm text-[#667065]">Checking your session…</div>;
@@ -74,6 +76,10 @@ function AppContent() {
     }
 
     if (isAuthenticated && clinicRoute && currentUser.role !== 'clinician' && currentUser.role !== 'admin') {
+      return <Unauthorized onNavigate={navigate} />;
+    }
+
+    if (isAuthenticated && adminRoute && currentUser.role !== 'admin') {
       return <Unauthorized onNavigate={navigate} />;
     }
 
@@ -100,6 +106,9 @@ function AppContent() {
     }
     if (currentPath === '/patient/access-history') {
       return <PatientAccessHistory onNavigate={navigate} />;
+    }
+    if (currentPath === '/admin/clinicians') {
+      return <AdminClinicians />;
     }
     if (currentPath === '/clinic/dashboard') {
       return <ClinicDashboard onNavigate={navigate} />;

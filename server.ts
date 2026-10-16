@@ -48,6 +48,7 @@ function logAuditEvent(event: Omit<AuditEvent, 'id' | 'timestamp' | 'ipHash'>): 
 }
 
 const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
+const DEMO_CLINICIAN_SESSION_TTL_SECONDS = 2 * 60 * 60;
 const PASSWORD_MIN_LENGTH = 12;
 const SEED_CREDENTIALS = [
   { userId: 'user-ananya', envKey: 'DEMO_PATIENT_PASSWORD' },
@@ -111,7 +112,35 @@ function createSession(user: UserSession): string {
   return token;
 }
 
+function createDemoClinicianSession(user: UserSession): string | null {
+  const secret = process.env.DEMO_CLINICIAN_SESSION_SECRET;
+  if (!secret) return null;
+  const expiresAt = Math.floor(Date.now() / 1000) + DEMO_CLINICIAN_SESSION_TTL_SECONDS;
+  const payload = `${user.id}:${expiresAt}`;
+  const signature = crypto.createHmac('sha256', secret).update(payload).digest('base64url');
+  return `demo.${expiresAt}.${signature}`;
+}
+
+function resolveDemoClinicianSession(token: string): UserSession | null {
+  const secret = process.env.DEMO_CLINICIAN_SESSION_SECRET;
+  if (!secret) return null;
+  const match = /^demo\.(\d{10})\.([A-Za-z0-9_-]{43})$/.exec(token);
+  if (!match) return null;
+  const expiresAt = Number(match[1]);
+  if (!Number.isSafeInteger(expiresAt) || expiresAt <= Math.floor(Date.now() / 1000)) return null;
+  const user = getDb().users.find(candidate =>
+    candidate.email.toLowerCase() === 'm.vance@sutterhealth.org' && candidate.role === 'clinician'
+  );
+  if (!user) return null;
+  const expected = crypto.createHmac('sha256', secret).update(`${user.id}:${expiresAt}`).digest();
+  const supplied = Buffer.from(match[2], 'base64url');
+  if (supplied.length !== expected.length || !crypto.timingSafeEqual(supplied, expected)) return null;
+  return user;
+}
+
 function resolveSession(token: string): UserSession | null {
+  const demoUser = resolveDemoClinicianSession(token);
+  if (demoUser) return demoUser;
   if (!/^[A-Za-z0-9_-]{40,}$/.test(token)) return null;
   const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
   const session = getDb().authSessions?.find(candidate => {
@@ -187,6 +216,22 @@ app.post('/api/auth/login', (req: Request, res: Response) => {
   const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : '';
   const password = typeof req.body.password === 'string' ? req.body.password : '';
   const db = getDb();
+
+  const demoClinicianPassword = process.env.DEMO_CLINICIAN_PASSWORD;
+  if (email === 'm.vance@sutterhealth.org' && demoClinicianPassword && password) {
+    const supplied = Buffer.from(password);
+    const expected = Buffer.from(demoClinicianPassword);
+    if (supplied.length === expected.length && crypto.timingSafeEqual(supplied, expected)) {
+      const demoUser = db.users.find(item => item.email.toLowerCase() === email && item.role === 'clinician');
+      if (demoUser) {
+        const token = createDemoClinicianSession(demoUser);
+        if (!token) return res.status(503).json({ error: 'Demo sign-in is not configured.' });
+        setSessionCookie(res, token, DEMO_CLINICIAN_SESSION_TTL_SECONDS);
+        return res.json({ user: demoUser });
+      }
+    }
+  }
+
   const credential = db.authCredentials?.find(item => item.email === email);
   const user = credential && db.users.find(item => item.id === credential.userId);
   if (!credential || !user || !password) return res.status(401).json({ error: 'Email or password is incorrect.' });
@@ -267,6 +312,75 @@ app.post('/api/auth/logout', (req: Request, res: Response) => {
   }
   setSessionCookie(res, '', 0);
   res.json({ success: true });
+});
+
+// Clinician accounts are provisioned by authenticated administrators, never by public sign-up.
+app.get('/api/admin/organizations', (req: Request, res: Response) => {
+  if (!allowRoles(req, res, ['admin'])) return;
+  return res.json({ organizations: getDb().organizations.map(({ id, name, location }) => ({ id, name, location })) });
+});
+
+app.get('/api/admin/clinicians', (req: Request, res: Response) => {
+  if (!allowRoles(req, res, ['admin'])) return;
+  const clinicians = getDb().users
+    .filter(user => user.role === 'clinician')
+    .map(({ id, name, email, organization, organizationId, title, badgeNumber }) => ({
+      id, name, email, organization, organizationId, title, badgeNumber
+    }));
+  return res.json({ clinicians });
+});
+
+app.post('/api/admin/clinicians', (req: Request, res: Response) => {
+  if (!allowRoles(req, res, ['admin'])) return;
+  const name = typeof req.body.name === 'string' ? req.body.name.trim() : '';
+  const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+  const password = typeof req.body.password === 'string' ? req.body.password : '';
+  const organizationId = typeof req.body.organizationId === 'string' ? req.body.organizationId : '';
+  const title = typeof req.body.title === 'string' ? req.body.title.trim() : '';
+  const badgeNumber = typeof req.body.badgeNumber === 'string' ? req.body.badgeNumber.trim() : '';
+  const db = getDb();
+
+  if (name.length < 2 || name.length > 100) return res.status(400).json({ error: 'Enter a name between 2 and 100 characters.' });
+  if (!/^\S+@\S+\.\S+$/.test(email) || email.length > 254) return res.status(400).json({ error: 'Enter a valid email address.' });
+  if (password.length < PASSWORD_MIN_LENGTH || password.length > 256) {
+    return res.status(400).json({ error: `Use a password between ${PASSWORD_MIN_LENGTH} and 256 characters.` });
+  }
+  if (!organizationId || !db.organizations.some(organization => organization.id === organizationId)) {
+    return res.status(400).json({ error: 'Select a valid organization.' });
+  }
+  if (title.length > 100 || badgeNumber.length > 64) return res.status(400).json({ error: 'Title or badge number is too long.' });
+  if (db.users.some(user => user.email.toLowerCase() === email)) {
+    return res.status(409).json({ error: 'An account already exists with that email address.' });
+  }
+
+  const organization = db.organizations.find(item => item.id === organizationId)!;
+  const clinician: UserSession = {
+    id: `clinician-${crypto.randomUUID()}`,
+    name,
+    email,
+    role: 'clinician',
+    organization: organization.name,
+    organizationId: organization.id,
+    title: title || 'Clinician',
+    ...(badgeNumber ? { badgeNumber } : {})
+  };
+  db.users.push(clinician);
+  savePassword(clinician, password);
+  const administrator = getRequestUser(req);
+  logAuditEvent({
+    actorName: administrator.name,
+    actorRole: 'admin',
+    organization: administrator.organization || 'MediLink Administration',
+    action: 'CLINICIAN_ACCOUNT_PROVISIONED',
+    outcome: 'SUCCESS',
+    details: `Provisioned clinician account ${clinician.id} for ${clinician.email}.`
+  });
+
+  const { id, name: clinicianName, email: clinicianEmail, organization: clinicianOrganization, organizationId: clinicianOrganizationId, title: clinicianTitle, badgeNumber: clinicianBadgeNumber } = clinician;
+  return res.status(201).json({ clinician: {
+    id, name: clinicianName, email: clinicianEmail, organization: clinicianOrganization,
+    organizationId: clinicianOrganizationId, title: clinicianTitle, badgeNumber: clinicianBadgeNumber
+  } });
 });
 
 // 3. Reset DB for repeatable demo testing
@@ -908,4 +1022,8 @@ async function startServer() {
   });
 }
 
-startServer();
+export { app };
+
+if (process.env.VERCEL !== '1') {
+  startServer();
+}

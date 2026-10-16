@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "api/[...path].ts": {
+      "includeFiles": "data/medilink_store.json"
+    }
+  }
+}

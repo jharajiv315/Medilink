@@ -7,11 +7,11 @@ interface LoginPageProps {
   redirectTo?: string;
 }
 
-type AuthMode = 'signin' | 'signup';
+type AuthMode = 'patient-signin' | 'clinical-signin' | 'signup';
 
 export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, redirectTo }) => {
-  const { login, registerPatient } = useAuth();
-  const [mode, setMode] = useState<AuthMode>('signin');
+  const { login, registerPatient, logout } = useAuth();
+  const [mode, setMode] = useState<AuthMode>('patient-signin');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -34,6 +34,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, redirectTo }) 
       const user = mode === 'signup'
         ? await registerPatient({ name, email, password, birthDate, gender })
         : await login(email, password);
+      if (mode === 'patient-signin' && user.role !== 'patient') {
+        await logout();
+        throw new Error('This is a clinical team account. Choose Clinical Team Sign In.');
+      }
+      if (mode === 'clinical-signin' && user.role !== 'clinician' && user.role !== 'admin') {
+        await logout();
+        throw new Error('This is a patient account. Choose Patient Sign In.');
+      }
       const canUseRedirect = redirectTo && (
         (user.role === 'patient' && redirectTo.startsWith('/patient/')) ||
         (user.role === 'clinician' && redirectTo.startsWith('/clinic/')) ||
@@ -44,7 +52,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, redirectTo }) 
         : user.role === 'clinician'
           ? '/clinic/dashboard'
           : user.role === 'admin'
-            ? '/patient/access-history'
+            ? '/admin/clinicians'
             : '/patient/dashboard');
     } catch (authError) {
       setError(authError instanceof Error ? authError.message : 'Unable to sign in. Please try again.');
@@ -58,28 +66,39 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, redirectTo }) 
       <div className="w-full max-w-lg bg-white rounded-3xl border border-[#DFE5D8] p-6 sm:p-9 shadow-lg">
         <div className="text-center mb-7">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#F2F7EB] text-[#33650E] text-[12px] font-bold border border-[#DFE5D8] mb-3">
-            {mode === 'signin' ? <LockKeyhole className="w-3.5 h-3.5" /> : <UserRoundPlus className="w-3.5 h-3.5" />}
+            {mode === 'signup' ? <UserRoundPlus className="w-3.5 h-3.5" /> : <LockKeyhole className="w-3.5 h-3.5" />}
             <span>Secure healthcare account</span>
           </div>
           <h1 className="font-['Plus_Jakarta_Sans'] text-[28px] font-bold text-[#0B0808]">
-            {mode === 'signin' ? 'Sign in to MediLink' : 'Create your patient account'}
+            {mode === 'signup' ? 'Create your patient account' : mode === 'clinical-signin' ? 'Clinical team sign in' : 'Patient sign in'}
           </h1>
           <p className="text-[14px] text-[#596253] mt-2">
-            {mode === 'signin'
-              ? 'Use the email and password associated with your account.'
-              : 'Your account starts with a private, empty medical record.'}
+            {mode === 'signup'
+              ? 'Your account starts with a private, empty medical record.'
+              : mode === 'clinical-signin'
+                ? 'Doctors sign in with credentials provisioned by a MediLink administrator.'
+                : 'Use the email and password associated with your patient account.'}
           </p>
         </div>
 
-        <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-[#F3F7EE] border border-[#DCE4D5] mb-6" role="tablist" aria-label="Account access">
+        <div className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-[#F3F7EE] border border-[#DCE4D5] mb-6" role="tablist" aria-label="Account access">
           <button
             type="button"
             role="tab"
-            aria-selected={mode === 'signin'}
-            onClick={() => { setMode('signin'); setError(''); }}
-            className={`py-2.5 rounded-lg text-[13px] font-semibold transition-colors ${mode === 'signin' ? 'bg-white text-[#214D09] shadow-sm' : 'text-[#596253]'}`}
+            aria-selected={mode === 'patient-signin'}
+            onClick={() => { setMode('patient-signin'); setError(''); }}
+            className={`py-2.5 rounded-lg text-[12px] sm:text-[13px] font-semibold transition-colors ${mode === 'patient-signin' ? 'bg-white text-[#214D09] shadow-sm' : 'text-[#596253]'}`}
           >
-            Sign In
+            Patient Sign In
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={mode === 'clinical-signin'}
+            onClick={() => { setMode('clinical-signin'); setError(''); }}
+            className={`py-2.5 rounded-lg text-[12px] sm:text-[13px] font-semibold transition-colors ${mode === 'clinical-signin' ? 'bg-white text-[#214D09] shadow-sm' : 'text-[#596253]'}`}
+          >
+            Clinical Team
           </button>
           <button
             type="button"
@@ -156,7 +175,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, redirectTo }) 
             Password
             <input
               type="password"
-              autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
+            autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
               required
               minLength={12}
               maxLength={256}
@@ -190,13 +209,15 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, redirectTo }) 
             disabled={isLoading}
             className="w-full bg-[#33650E] hover:bg-[#28510B] disabled:opacity-60 text-white font-semibold py-3.5 rounded-xl transition-colors shadow-sm flex items-center justify-center gap-2 text-[14px]"
           >
-            <span>{isLoading ? 'Please wait…' : mode === 'signin' ? 'Sign In' : 'Create Account'}</span>
+            <span>{isLoading ? 'Please wait…' : mode === 'signup' ? 'Create Account' : mode === 'clinical-signin' ? 'Clinical Team Sign In' : 'Patient Sign In'}</span>
             {!isLoading && <ArrowRight className="w-4 h-4" />}
           </button>
         </form>
 
         <div className="mt-5 rounded-xl bg-[#F7F9F4] border border-[#E5EADF] px-3.5 py-3 text-[11.5px] leading-relaxed text-[#667065]">
-          Clinician accounts are provisioned by the MediLink administrator. Sign in with the credentials issued to you.
+          {mode === 'clinical-signin'
+            ? 'Doctor and administrator accounts are provisioned by MediLink. If you need access, contact your administrator.'
+            : 'Doctors sign in through the Clinical Team tab using administrator-issued credentials.'}
         </div>
 
         <div className="mt-5 pt-4 border-t border-[#DFE5D8] text-center text-[12px] text-[#667065]">

@@ -155,7 +155,7 @@ export interface AuditEvent {
   actorName: string;
   actorRole: UserRole;
   organization: string;
-  patientId: string;
+  patientId?: string;
   action:
     | 'DOCUMENT_INGESTED'
     | 'ACCESS_REQUESTED'
@@ -163,6 +163,7 @@ export interface AuditEvent {
     | 'ACCESS_REVOKED'
     | 'RECORD_ACCESSED'
     | 'CLINICAL_REVIEW_RECORDED'
+    | 'CLINICIAN_ACCOUNT_PROVISIONED'
     | 'ACCESS_DENIED';
   outcome: 'SUCCESS' | 'DENIED' | 'FLAGGED';
   details: string;
