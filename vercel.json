@@ -1,6 +1,12 @@
 {
+  "rewrites": [
+    {
+      "source": "/api/:route*",
+      "destination": "/api/index?__route=:route*"
+    }
+  ],
   "functions": {
-    "api/[...path].ts": {
+    "api/index.ts": {
       "includeFiles": "data/medilink_store.json"
     }
   }
