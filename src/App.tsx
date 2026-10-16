@@ -35,9 +35,21 @@ function AppContent() {
 
     if (path.startsWith('/#')) {
       const id = path.replace('/#', '');
-      const el = document.getElementById(id);
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth' });
+      if (currentPath === '/' || currentPath === '') {
+        const el = document.getElementById(id);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth' });
+          return;
+        }
+      } else {
+        window.history.pushState({}, '', '/');
+        setCurrentPath('/');
+        setTimeout(() => {
+          const el = document.getElementById(id);
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth' });
+          }
+        }, 100);
         return;
       }
     }

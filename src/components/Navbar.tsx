@@ -162,7 +162,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath, onNavigate }) => {
     {
       title: 'Active Patient Handoff (Ananya Sharma)',
       subtitle: 'Two-pane clinical reconciliation for DEMO-P001',
-      path: '/clinic/handoff/grant-sutter-01',
+      path: `/clinic/handoff/${activeGrantId}`,
       category: 'Clinician Suite',
       badge: 'Active Token',
       badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200'
@@ -880,7 +880,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath, onNavigate }) => {
                   </button>
                   <button
                     onClick={() => {
-                      onNavigate('/clinic/handoff/grant-sutter-01');
+                      onNavigate(`/clinic/handoff/${activeGrantId}`);
                       setMobileMenuOpen(false);
                     }}
                     className="w-full text-left py-2.5 px-3 rounded-xl font-bold text-[#214D09] flex items-center justify-between"
