@@ -1,24 +1,46 @@
 import React, { useState } from 'react';
+import { useAuth } from '../context/AuthContext.tsx';
 
 interface PatientImportProps {
   onNavigate: (path: string) => void;
 }
 
 export const PatientImport: React.FC<PatientImportProps> = ({ onNavigate }) => {
-  const [sourceOrg, setSourceOrg] = useState('Stanford Health Care');
-  const [docCategory, setDocCategory] = useState<'discharge_summary' | 'specialty_consult' | 'lab_report' | 'prescription_order'>('specialty_consult');
-  const [docTitle, setDocTitle] = useState('Cardiology Consultation & Echo Evaluation');
-  const [clinicalDate, setClinicalDate] = useState('2026-03-15');
-  const [fileName, setFileName] = useState('Cardiology_Consult_Stanford_2026.pdf');
+  const { currentUser, getAuthHeaders } = useAuth();
+  const patientId = currentUser.patientId || 'DEMO-P001';
+
+  const [sourceOrg, setSourceOrg] = useState('Hospital A (Memorial Health)');
+  const [docCategory, setDocCategory] = useState<'discharge_summary' | 'specialty_consult' | 'lab_report' | 'prescription_order' | 'allergy_challenge'>('discharge_summary');
+  const [docTitle, setDocTitle] = useState('Hospital A Discharge Summary');
+  const [clinicalDate, setClinicalDate] = useState('2026-01-10');
+  const [fileName, setFileName] = useState('HospitalA_Discharge_Summary.pdf');
   const [rawText, setRawText] = useState(
-    'CONSULTATION REASON: Pre-operative cardiac clearance for elective orthopedics.\nFINDINGS: Normal sinus rhythm. LVEF 60-65%. No ischemic changes.\nMEDICATIONS: Metformin 1000mg BID continued. Lisinopril 10mg daily.\nALLERGIES: Reviewed prior skin challenge report; confirmed tolerating oral cephalosporins without rash.'
+    'ADMISSION DIAGNOSIS: Acute viral gastroenteritis with dehydration.\nALLERGIES: Penicillin allergy — rash and hives reported following childhood amoxicillin.\nHOSPITAL COURSE: Rehydrated with IV fluids. Discharged in stable condition.'
   );
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [ingestSuccess, setIngestSuccess] = useState<any | null>(null);
 
-  const loadSample = (preset: 'cardio' | 'urgent' | 'endocrine') => {
-    if (preset === 'cardio') {
+  const loadSample = (preset: 'hospitalA' | 'clinicB' | 'cardio' | 'urgent' | 'endocrine') => {
+    if (preset === 'hospitalA') {
+      setSourceOrg('Hospital A (Memorial Health)');
+      setDocCategory('discharge_summary');
+      setDocTitle('Hospital A Discharge Summary');
+      setClinicalDate('2026-01-10');
+      setFileName('HospitalA_Discharge_Summary.pdf');
+      setRawText(
+        'ADMISSION DIAGNOSIS: Acute viral gastroenteritis with dehydration.\nALLERGIES: Penicillin allergy — rash and hives reported following childhood amoxicillin.\nHOSPITAL COURSE: Rehydrated with IV fluids. Discharged in stable condition.'
+      );
+    } else if (preset === 'clinicB') {
+      setSourceOrg('Clinic B (Metro Allergy Specialists)');
+      setDocCategory('allergy_challenge');
+      setDocTitle('Clinic B Consultation & Oral Challenge');
+      setClinicalDate('2026-06-15');
+      setFileName('ClinicB_Allergy_Consultation.pdf');
+      setRawText(
+        'CHIEF COMPLAINT: Penicillin allergy de-labeling assessment.\nFINDINGS: Full skin prick test negative. Oral amoxicillin 250mg challenge tolerated without reaction.\nCONCLUSION: No known drug allergies. Patient is non-allergic and safe for future beta-lactam prescribing.'
+      );
+    } else if (preset === 'cardio') {
       setSourceOrg('Stanford Health Care');
       setDocCategory('specialty_consult');
       setDocTitle('Cardiology Consultation & Echo Evaluation');
@@ -52,9 +74,31 @@ export const PatientImport: React.FC<PatientImportProps> = ({ onNavigate }) => {
     e.preventDefault();
     setIsProcessing(true);
 
-    // Extract synthetic candidate facts
+    // Extract structured clinical candidate facts based on document text
     const extractedItems = [];
-    if (rawText.toLowerCase().includes('metformin 1000mg')) {
+    const lower = rawText.toLowerCase();
+
+    if (lower.includes('penicillin allergy — rash') || (lower.includes('penicillin') && lower.includes('rash'))) {
+      extractedItems.push({
+        factType: 'allergy',
+        conceptKey: 'penicillin',
+        assertion: 'Penicillin allergy — rash',
+        value: 'Allergic: documented rash & hives',
+        evidenceQuote: 'Penicillin allergy — rash and hives reported following childhood amoxicillin.'
+      });
+    }
+
+    if (lower.includes('no known drug allergies') || lower.includes('skin prick test negative')) {
+      extractedItems.push({
+        factType: 'allergy',
+        conceptKey: 'penicillin',
+        assertion: 'No known drug allergies (Skin Prick Negative)',
+        value: 'Non-allergic: negative challenge',
+        evidenceQuote: 'Full skin prick test negative. Oral amoxicillin 250mg challenge tolerated without reaction.'
+      });
+    }
+
+    if (lower.includes('metformin 1000mg')) {
       extractedItems.push({
         factType: 'medication',
         conceptKey: 'metformin',
@@ -63,7 +107,8 @@ export const PatientImport: React.FC<PatientImportProps> = ({ onNavigate }) => {
         evidenceQuote: 'Metformin 1000mg BID continued.'
       });
     }
-    if (rawText.toLowerCase().includes('lisinopril')) {
+
+    if (lower.includes('lisinopril')) {
       extractedItems.push({
         factType: 'medication',
         conceptKey: 'lisinopril',
@@ -72,7 +117,8 @@ export const PatientImport: React.FC<PatientImportProps> = ({ onNavigate }) => {
         evidenceQuote: 'Lisinopril 10mg daily.'
       });
     }
-    if (rawText.toLowerCase().includes('cefdinir')) {
+
+    if (lower.includes('cefdinir')) {
       extractedItems.push({
         factType: 'medication',
         conceptKey: 'cefdinir',
@@ -83,14 +129,14 @@ export const PatientImport: React.FC<PatientImportProps> = ({ onNavigate }) => {
     }
 
     try {
-      const res = await fetch('/api/patients/DEMO-P001/ingest', {
+      const res = await fetch(`/api/patients/${patientId}/ingest`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           title: docTitle,
           documentType: docCategory,
           sourceOrgName: sourceOrg,
-          sourceOrgId: `org-${sourceOrg.toLowerCase().replace(/\s+/g, '-')}`,
+          sourceOrgId: `org-${sourceOrg.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
           clinicalDate,
           rawText,
           fileName,
@@ -128,7 +174,37 @@ export const PatientImport: React.FC<PatientImportProps> = ({ onNavigate }) => {
         <span className="text-[11px] font-bold text-[#667065] uppercase tracking-wider block mb-3">
           Quick Load Verified Clinical Presets
         </span>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <button
+            type="button"
+            onClick={() => loadSample('hospitalA')}
+            className="p-3 rounded-xl border-2 border-[#A33837]/30 bg-[#FFF0EF]/40 hover:border-[#A33837] hover:bg-[#FFF0EF] text-left transition-all"
+          >
+            <div className="flex items-center justify-between">
+              <p className="font-['Plus_Jakarta_Sans'] text-[13px] font-bold text-[#A33837]">
+                Hospital A: Discharge Record
+              </p>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-[#FFF0EF] text-[#A33837] border border-[#f8c8c6]">Demo Step 1</span>
+            </div>
+            <p className="text-[11px] text-[#42493b] mt-1">
+              "Penicillin allergy — rash and hives reported."
+            </p>
+          </button>
+          <button
+            type="button"
+            onClick={() => loadSample('clinicB')}
+            className="p-3 rounded-xl border-2 border-[#33650E]/30 bg-[#EDF6E6]/40 hover:border-[#33650E] hover:bg-[#EDF6E6] text-left transition-all"
+          >
+            <div className="flex items-center justify-between">
+              <p className="font-['Plus_Jakarta_Sans'] text-[13px] font-bold text-[#33650E]">
+                Clinic B: Negative Challenge
+              </p>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-[#EDF6E6] text-[#33650E] border border-[#d0e4b6]">Demo Step 2</span>
+            </div>
+            <p className="text-[11px] text-[#42493b] mt-1">
+              "Oral challenge tolerated. No known drug allergies."
+            </p>
+          </button>
           <button
             type="button"
             onClick={() => loadSample('cardio')}
@@ -137,32 +213,8 @@ export const PatientImport: React.FC<PatientImportProps> = ({ onNavigate }) => {
             <p className="font-['Plus_Jakarta_Sans'] text-[13px] font-bold text-[#0B0808]">
               Stanford Cardiology Consult
             </p>
-            <p className="text-[11px] text-[#42493b] mt-0.5">
-              Pre-op echo clearance, cephalosporin tolerance review
-            </p>
-          </button>
-          <button
-            type="button"
-            onClick={() => loadSample('urgent')}
-            className="p-3 rounded-xl border border-[#DFE5D8] hover:border-[#33650E] hover:bg-[#F2F7EB] text-left transition-all"
-          >
-            <p className="font-['Plus_Jakarta_Sans'] text-[13px] font-bold text-[#0B0808]">
-              Northwestern Urgent Care
-            </p>
-            <p className="text-[11px] text-[#42493b] mt-0.5">
-              Sinusitis encounter note &amp; Cefdinir prescription
-            </p>
-          </button>
-          <button
-            type="button"
-            onClick={() => loadSample('endocrine')}
-            className="p-3 rounded-xl border border-[#DFE5D8] hover:border-[#33650E] hover:bg-[#F2F7EB] text-left transition-all"
-          >
-            <p className="font-['Plus_Jakarta_Sans'] text-[13px] font-bold text-[#0B0808]">
-              Endocrine Reconciliation
-            </p>
-            <p className="text-[11px] text-[#42493b] mt-0.5">
-              Metformin 1000mg BID confirmation &amp; A1c monitoring
+            <p className="text-[11px] text-[#42493b] mt-1">
+              Echo clearance, Metformin &amp; Lisinopril review
             </p>
           </button>
         </div>

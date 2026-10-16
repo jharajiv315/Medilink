@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext.tsx';
 import type { AccessCategory } from '../types/medilink.ts';
 
 interface TimelineItem {
@@ -20,6 +21,9 @@ interface PatientHistoryProps {
 }
 
 export const PatientHistory: React.FC<PatientHistoryProps> = ({ onNavigate }) => {
+  const { currentUser, getAuthHeaders } = useAuth();
+  const patientId = currentUser.patientId || 'DEMO-P001';
+
   const [items, setItems] = useState<TimelineItem[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState('');
@@ -27,7 +31,9 @@ export const PatientHistory: React.FC<PatientHistoryProps> = ({ onNavigate }) =>
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/patients/DEMO-P001/timeline')
+    fetch(`/api/patients/${patientId}/timeline`, {
+      headers: getAuthHeaders()
+    })
       .then(res => res.json())
       .then(data => {
         if (data.timeline) {
@@ -36,7 +42,7 @@ export const PatientHistory: React.FC<PatientHistoryProps> = ({ onNavigate }) =>
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, []);
+  }, [patientId]);
 
   const categories = ['All', 'Consultations', 'Medications', 'Allergies', 'Lab Reports'];
 

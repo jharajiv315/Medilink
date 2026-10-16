@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext.tsx';
 import type { AccessGrant, AccessCategory } from '../types/medilink.ts';
 
 interface PatientConsentsProps {
@@ -6,12 +7,29 @@ interface PatientConsentsProps {
 }
 
 export const PatientConsents: React.FC<PatientConsentsProps> = ({ onNavigate }) => {
+  const { currentUser, getAuthHeaders } = useAuth();
+  const patientId = currentUser.patientId || 'DEMO-P001';
+
   const [grants, setGrants] = useState<AccessGrant[]>([]);
   const [activeTab, setActiveTab] = useState<'active' | 'pending' | 'expired' | 'revoked'>('active');
   const [loading, setLoading] = useState(true);
   const [modalGrant, setModalGrant] = useState<AccessGrant | null>(null);
   const [selectedCategories, setSelectedCategories] = useState<AccessCategory[]>([]);
   const [durationDays, setDurationDays] = useState(30);
+  const [durationMinutes, setDurationMinutes] = useState<number | null>(null);
+  const [qrGrant, setQrGrant] = useState<AccessGrant | null>(null);
+  const [revokingGrantId, setRevokingGrantId] = useState<string | null>(null);
+
+  // Prevent background scrolling and viewport jitter when any modal is open
+  useEffect(() => {
+    if (modalGrant || qrGrant || revokingGrantId) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [modalGrant, qrGrant, revokingGrantId]);
 
   const allAvailableCategories: AccessCategory[] = [
     'Allergies',
@@ -23,7 +41,9 @@ export const PatientConsents: React.FC<PatientConsentsProps> = ({ onNavigate }) 
   ];
 
   const loadGrants = () => {
-    fetch('/api/patients/DEMO-P001/consents')
+    fetch(`/api/patients/${patientId}/consents`, {
+      headers: getAuthHeaders()
+    })
       .then(res => res.json())
       .then(data => {
         if (data.grants) {
@@ -36,15 +56,13 @@ export const PatientConsents: React.FC<PatientConsentsProps> = ({ onNavigate }) 
 
   useEffect(() => {
     loadGrants();
-  }, []);
-
-  const [revokingGrantId, setRevokingGrantId] = useState<string | null>(null);
+  }, [patientId]);
 
   const handleRevoke = async (grantId: string) => {
     try {
-      const res = await fetch(`/api/patients/DEMO-P001/consents/${grantId}/revoke`, {
+      const res = await fetch(`/api/patients/${patientId}/consents/${grantId}/revoke`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ reason: 'Patient terminated consent.' })
       });
       if (res.ok) {
@@ -59,17 +77,23 @@ export const PatientConsents: React.FC<PatientConsentsProps> = ({ onNavigate }) 
   const handleApprove = async () => {
     if (!modalGrant) return;
     try {
-      const res = await fetch(`/api/patients/DEMO-P001/consents/${modalGrant.id}/approve`, {
+      const res = await fetch(`/api/patients/${patientId}/consents/${modalGrant.id}/approve`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           approvedCategories: selectedCategories,
-          durationDays
+          durationDays,
+          durationMinutes
         })
       });
       if (res.ok) {
+        const approvedData = await res.json();
         setModalGrant(null);
         loadGrants();
+        // Immediately show QR code modal for phone-to-laptop scanning
+        if (approvedData.grant) {
+          setQrGrant(approvedData.grant);
+        }
       }
     } catch {
       alert('Error approving grant.');
@@ -257,6 +281,13 @@ export const PatientConsents: React.FC<PatientConsentsProps> = ({ onNavigate }) 
                     {isActive && (
                       <>
                         <button
+                          onClick={() => setQrGrant(grant)}
+                          className="inline-flex items-center gap-1.5 bg-[#33650E] hover:bg-[#28510B] text-[#FFFFFF] text-[13px] font-semibold px-3.5 py-2 rounded-xl transition-all shadow-sm"
+                        >
+                          <span className="material-symbols-outlined text-[16px]">qr_code_2</span>
+                          <span>Show QR Code</span>
+                        </button>
+                        <button
                           onClick={() => onNavigate(`/clinic/handoff/${grant.id}`)}
                           className="bg-[#F2F7EB] hover:bg-[#ebefe4] text-[#33650E] border border-[#DFE5D8] text-[13px] font-semibold px-3.5 py-2 rounded-xl transition-colors"
                         >
@@ -280,7 +311,7 @@ export const PatientConsents: React.FC<PatientConsentsProps> = ({ onNavigate }) 
 
       {/* Revocation Confirmation Dialog */}
       {revokingGrantId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60">
           <div className="bg-[#FFFFFF] w-full max-w-md rounded-3xl border-2 border-[#A33837] p-6 shadow-2xl relative space-y-4 text-center">
             <div className="w-12 h-12 rounded-full bg-[#FFF0EF] text-[#A33837] flex items-center justify-center mx-auto">
               <span className="material-symbols-outlined text-[28px]">gpp_bad</span>
@@ -312,7 +343,7 @@ export const PatientConsents: React.FC<PatientConsentsProps> = ({ onNavigate }) 
 
       {/* Approve Modal with Granular Scope Selection */}
       {modalGrant && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60">
           <div className="bg-[#FFFFFF] w-full max-w-lg rounded-3xl border border-[#DFE5D8] p-6 sm:p-8 shadow-2xl relative space-y-5">
             <div className="flex items-start justify-between pb-3 border-b border-[#DFE5D8]">
               <div>
@@ -373,22 +404,75 @@ export const PatientConsents: React.FC<PatientConsentsProps> = ({ onNavigate }) 
 
             {/* Duration */}
             <div>
-              <label className="block text-[13px] font-bold text-[#0B0808] mb-1">
-                Access Duration: {durationDays} Days
+              <label className="block text-[13px] font-bold text-[#0B0808] mb-1.5">
+                Access Duration: {durationMinutes ? `${durationMinutes} Minutes (Live Demo Mode)` : `${durationDays} Days`}
               </label>
-              <input
-                type="range"
-                min="1"
-                max="90"
-                value={durationDays}
-                onChange={e => setDurationDays(Number(e.target.value))}
-                className="w-full accent-[#33650E]"
-              />
-              <div className="flex justify-between text-[11px] text-[#667065] mt-1">
-                <span>1 day</span>
-                <span>30 days (standard)</span>
-                <span>90 days (max)</span>
+
+              {/* Quick Preset Buttons */}
+              <div className="flex flex-wrap gap-2 mb-3">
+                <button
+                  type="button"
+                  onClick={() => { setDurationMinutes(2); setDurationDays(1); }}
+                  className={`px-3 py-1.5 rounded-lg text-[12px] font-bold border transition-all ${
+                    durationMinutes === 2
+                      ? 'bg-[#33650E] text-[#FFFFFF] border-[#33650E]'
+                      : 'bg-[#F2F7EB] text-[#33650E] border-[#DFE5D8] hover:bg-[#ebefe4]'
+                  }`}
+                >
+                  ⚡ 2 Minutes (Demo Expiry Gate)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setDurationMinutes(15); setDurationDays(1); }}
+                  className={`px-3 py-1.5 rounded-lg text-[12px] font-bold border transition-all ${
+                    durationMinutes === 15
+                      ? 'bg-[#33650E] text-[#FFFFFF] border-[#33650E]'
+                      : 'bg-[#F2F7EB] text-[#33650E] border-[#DFE5D8] hover:bg-[#ebefe4]'
+                  }`}
+                >
+                  ⏱ 15 Minutes (Demo Scope)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setDurationMinutes(null); setDurationDays(7); }}
+                  className={`px-3 py-1.5 rounded-lg text-[12px] font-bold border transition-all ${
+                    durationMinutes === null && durationDays === 7
+                      ? 'bg-[#33650E] text-[#FFFFFF] border-[#33650E]'
+                      : 'bg-[#F2F7EB] text-[#42493b] border-[#DFE5D8] hover:bg-[#ebefe4]'
+                  }`}
+                >
+                  7 Days
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setDurationMinutes(null); setDurationDays(30); }}
+                  className={`px-3 py-1.5 rounded-lg text-[12px] font-bold border transition-all ${
+                    durationMinutes === null && durationDays === 30
+                      ? 'bg-[#33650E] text-[#FFFFFF] border-[#33650E]'
+                      : 'bg-[#F2F7EB] text-[#42493b] border-[#DFE5D8] hover:bg-[#ebefe4]'
+                  }`}
+                >
+                  30 Days
+                </button>
               </div>
+
+              {!durationMinutes && (
+                <>
+                  <input
+                    type="range"
+                    min="1"
+                    max="90"
+                    value={durationDays}
+                    onChange={e => setDurationDays(Number(e.target.value))}
+                    className="w-full accent-[#33650E]"
+                  />
+                  <div className="flex justify-between text-[11px] text-[#667065] mt-1">
+                    <span>1 day</span>
+                    <span>30 days (standard)</span>
+                    <span>90 days (max)</span>
+                  </div>
+                </>
+              )}
             </div>
 
             <div className="pt-4 border-t border-[#DFE5D8] flex justify-end gap-3">
@@ -406,6 +490,70 @@ export const PatientConsents: React.FC<PatientConsentsProps> = ({ onNavigate }) 
                 className="bg-[#33650E] hover:bg-[#28510B] text-[#FFFFFF] text-[13px] font-semibold px-5 py-2.5 rounded-xl transition-all shadow-md"
               >
                 Sign &amp; Grant Access
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* QR Code Presentation Modal for 2-Device Demo */}
+      {qrGrant && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60">
+          <div className="bg-[#FFFFFF] w-full max-w-md rounded-3xl border border-[#DFE5D8] p-6 sm:p-8 shadow-2xl relative space-y-5 text-center">
+            <div className="flex items-center justify-between pb-3 border-b border-[#DFE5D8]">
+              <div className="text-left">
+                <span className="text-[11px] font-bold text-[#33650E] uppercase bg-[#F2F7EB] px-2.5 py-0.5 rounded-full border border-[#DFE5D8]">
+                  Zero-Knowledge QR Handshake
+                </span>
+                <h3 className="font-['Plus_Jakarta_Sans'] text-[18px] font-bold text-[#0B0808] mt-1">
+                  Scan to Open Handoff
+                </h3>
+              </div>
+              <button
+                onClick={() => setQrGrant(null)}
+                className="p-1 rounded-lg text-[#72796a] hover:bg-[#F4F5F1]"
+              >
+                <span className="material-symbols-outlined text-[20px]">close</span>
+              </button>
+            </div>
+
+            <p className="text-[13px] text-[#42493b] text-left">
+              Point the doctor's phone or laptop camera at this QR code to open the scoped clinical record.
+            </p>
+
+            {/* QR Code Graphic using dynamic SVG API */}
+            <div className="p-4 bg-[#F7FBF0] rounded-2xl border-2 border-[#78A541] flex flex-col items-center justify-center space-y-3">
+              <div className="w-48 h-48 flex items-center justify-center bg-white rounded-xl shadow-inner border border-[#DFE5D8] overflow-hidden shrink-0">
+                <img
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=192x192&data=${encodeURIComponent(
+                    `${window.location.origin}/clinic/handoff/${qrGrant.id}`
+                  )}`}
+                  alt={`QR code for grant ${qrGrant.id}`}
+                  width={192}
+                  height={192}
+                  className="w-full h-full object-contain p-2"
+                  loading="eager"
+                />
+              </div>
+              <div className="text-left w-full space-y-1 font-mono text-[11px] bg-white p-2.5 rounded-xl border border-[#DFE5D8]">
+                <p className="text-[#0B0808]"><strong>Grant ID:</strong> {qrGrant.id}</p>
+                <p className="text-[#33650E]"><strong>Authorized Scopes:</strong> {qrGrant.approvedCategories.join(', ')}</p>
+                <p className="text-[#667065]"><strong>Recipient:</strong> {qrGrant.requesterName} ({qrGrant.requestingOrgName})</p>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-2 pt-2">
+              <button
+                onClick={() => onNavigate(`/clinic/handoff/${qrGrant.id}`)}
+                className="flex-1 bg-[#33650E] hover:bg-[#28510B] text-white text-[13px] font-semibold py-2.5 px-4 rounded-xl shadow-md transition-all"
+              >
+                Open Handoff Link Directly
+              </button>
+              <button
+                onClick={() => setQrGrant(null)}
+                className="px-4 py-2.5 rounded-xl text-[13px] font-medium text-[#484D45] hover:bg-[#F4F5F1]"
+              >
+                Done
               </button>
             </div>
           </div>

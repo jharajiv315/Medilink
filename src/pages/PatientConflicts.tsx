@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext.tsx';
 import type { DiscrepancyConflict } from '../types/medilink.ts';
 
 interface PatientConflictsProps {
@@ -6,6 +7,9 @@ interface PatientConflictsProps {
 }
 
 export const PatientConflicts: React.FC<PatientConflictsProps> = ({ onNavigate }) => {
+  const { currentUser, getAuthHeaders } = useAuth();
+  const patientId = currentUser.patientId || 'DEMO-P001';
+
   const [conflicts, setConflicts] = useState<DiscrepancyConflict[]>([]);
   const [loading, setLoading] = useState(true);
   const [patientNote, setPatientNote] = useState('No symptoms upon amoxicillin re-challenge.');
@@ -13,7 +17,9 @@ export const PatientConflicts: React.FC<PatientConflictsProps> = ({ onNavigate }
   const [affirmSuccess, setAffirmSuccess] = useState(false);
 
   const loadConflicts = () => {
-    fetch('/api/patients/DEMO-P001/conflicts')
+    fetch(`/api/patients/${patientId}/conflicts`, {
+      headers: getAuthHeaders()
+    })
       .then(res => res.json())
       .then(data => {
         if (data.conflicts) {
@@ -26,14 +32,14 @@ export const PatientConflicts: React.FC<PatientConflictsProps> = ({ onNavigate }
 
   useEffect(() => {
     loadConflicts();
-  }, []);
+  }, [patientId]);
 
   const handleAffirm = async (conflictId: string) => {
     setIsAffirming(true);
     try {
-      const res = await fetch(`/api/patients/DEMO-P001/conflicts/${conflictId}/affirm`, {
+      const res = await fetch(`/api/patients/${patientId}/conflicts/${conflictId}/affirm`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ affirmationStatement: patientNote })
       });
       if (res.ok) {
@@ -126,19 +132,19 @@ export const PatientConflicts: React.FC<PatientConflictsProps> = ({ onNavigate }
 
                 <div className="flex items-center gap-2">
                   <span
-                    className={`px-3 py-1 rounded-full text-[12px] font-bold ${
+                    className={`px-3.5 py-1.5 rounded-full text-[12px] font-bold border transition-colors ${
                       isReconciled
-                        ? 'bg-[#F2F7EB] text-[#33650E]'
+                        ? 'bg-[#EDF6E6] text-[#33650E] border-[#D0E4B6]'
                         : isAffirmed
-                        ? 'bg-[#F4F5F1] text-[#214c00]'
-                        : 'bg-[#FFF5E5] text-[#985C12]'
+                        ? 'bg-[#F2F7EB] text-[#285208] border-[#D0E4B6]'
+                        : 'bg-[#FFF5E5] text-[#985C12] border-[#F2D4A8]'
                     }`}
                   >
                     {isReconciled
                       ? 'Reconciled by Clinician'
                       : isAffirmed
                       ? 'Patient Affirmed'
-                      : 'Action Required'}
+                      : 'Documentation discrepancy — clinical review required'}
                   </span>
                 </div>
               </div>

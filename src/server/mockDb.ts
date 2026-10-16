@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import type {
   Patient,
   Organization,
@@ -404,12 +406,49 @@ function createInitialDatabase(): MediLinkDatabase {
   };
 }
 
-// In-memory singleton database with clone capability
-let db: MediLinkDatabase = createInitialDatabase();
+const DB_FILE_PATH = path.resolve(process.cwd(), 'data', 'medilink_store.json');
+
+function loadPersistedDatabase(): MediLinkDatabase {
+  try {
+    if (fs.existsSync(DB_FILE_PATH)) {
+      const raw = fs.readFileSync(DB_FILE_PATH, 'utf-8');
+      const parsed = JSON.parse(raw);
+      if (parsed && Array.isArray(parsed.users) && Array.isArray(parsed.patients)) {
+        return parsed;
+      }
+    }
+  } catch (err) {
+    console.warn('[MediLink DB] Could not load persisted database, initializing fresh seed:', err);
+  }
+  const initial = createInitialDatabase();
+  persistDatabase(initial);
+  return initial;
+}
+
+function persistDatabase(data: MediLinkDatabase): void {
+  try {
+    const dir = path.dirname(DB_FILE_PATH);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    const tempPath = `${DB_FILE_PATH}.tmp`;
+    fs.writeFileSync(tempPath, JSON.stringify(data, null, 2), 'utf-8');
+    fs.renameSync(tempPath, DB_FILE_PATH);
+  } catch (err) {
+    console.error('[MediLink DB] Failed to persist database:', err);
+  }
+}
+
+let db: MediLinkDatabase = loadPersistedDatabase();
 
 export const getDb = (): MediLinkDatabase => db;
 
+export const saveDb = (): void => {
+  persistDatabase(db);
+};
+
 export const resetDb = (): MediLinkDatabase => {
   db = createInitialDatabase();
+  persistDatabase(db);
   return db;
 };

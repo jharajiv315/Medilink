@@ -70,3 +70,85 @@ export function filterRecordsByScopes<T extends { category: AccessCategory }>(
     isAuthorized: true
   };
 }
+
+export interface RequesterContext {
+  userId: string;
+  role: string;
+  organizationId?: string;
+  organizationName?: string;
+  patientId?: string;
+}
+
+export function authorizeClinicianHandoffAccess(
+  grant: AccessGrant,
+  requester: RequesterContext,
+  now: Date = new Date()
+): { authorized: boolean; httpStatus: number; errorCode: string; message: string } {
+  if (requester.role !== 'clinician' && requester.role !== 'admin') {
+    return {
+      authorized: false,
+      httpStatus: 403,
+      errorCode: 'ROLE_UNAUTHORIZED',
+      message: 'Access Denied: Only authenticated clinicians with an active clinical grant may access this handoff.'
+    };
+  }
+
+  // Check requesting organization binding if provided
+  if (
+    requester.organizationId &&
+    grant.requestingOrgId &&
+    requester.organizationId !== grant.requestingOrgId &&
+    requester.role !== 'admin'
+  ) {
+    return {
+      authorized: false,
+      httpStatus: 403,
+      errorCode: 'ORG_MISMATCH',
+      message: `Access Denied: Grant was issued specifically for '${grant.requestingOrgName}', but caller belongs to a different organization.`
+    };
+  }
+
+  const status = evaluateGrantStatus(grant, now);
+  if (status === 'revoked') {
+    return {
+      authorized: false,
+      httpStatus: 403,
+      errorCode: 'GRANT_REVOKED',
+      message: 'Access Denied: Patient explicitly revoked clinical authorization for this handoff.'
+    };
+  }
+
+  if (status === 'expired') {
+    return {
+      authorized: false,
+      httpStatus: 403,
+      errorCode: 'GRANT_EXPIRED',
+      message: 'Access Denied: The time-bound cryptographic access grant has expired.'
+    };
+  }
+
+  if (status === 'pending') {
+    return {
+      authorized: false,
+      httpStatus: 403,
+      errorCode: 'GRANT_PENDING',
+      message: 'Access Denied: Grant request is pending patient review and has not yet been approved.'
+    };
+  }
+
+  if (status !== 'active') {
+    return {
+      authorized: false,
+      httpStatus: 403,
+      errorCode: 'GRANT_INACTIVE',
+      message: `Access Denied: Grant is in '${status}' state.`
+    };
+  }
+
+  return {
+    authorized: true,
+    httpStatus: 200,
+    errorCode: 'AUTHORIZED',
+    message: 'Authorized'
+  };
+}

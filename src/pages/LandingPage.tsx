@@ -37,22 +37,21 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
             {/* Eyebrow Pill */}
             <div className="inline-flex items-center gap-2.5 px-3.5 py-1.5 rounded-full bg-[#F2F7EB] border border-[#DFE5D8] shadow-sm">
               <span className="w-2 h-2 rounded-full bg-[#33650E] animate-pulse"></span>
-              <span className="font-['DM_Sans'] text-[12px] font-bold text-[#33650E] tracking-wide">
-                Smarter Healthcare. Connected Records.
+              <span className="font-['DM_Sans'] text-[12px] font-bold text-[#33650E] tracking-wider uppercase">
+                HEALTHCARE CONTINUITY, SIMPLIFIED
               </span>
             </div>
 
             {/* Main Headline */}
             <h1 className="font-['Plus_Jakarta_Sans'] text-[38px] sm:text-[54px] lg:text-[60px] text-[#0B0808] font-bold tracking-tight leading-[1.08]">
               Your Health Records, <br className="hidden sm:inline" />
-              <span className="text-[#416905]">Finally Connected.</span>
+              <span className="text-[#33650E]">Finally Connected.</span>
             </h1>
 
             {/* Supporting Body Copy */}
             <p className="font-['DM_Sans'] text-[17px] sm:text-[18px] text-[#42493b] max-w-xl leading-relaxed">
-              All your medical records in one secure place. Understand your health history, identify
-              information that needs review, and share the right records with your next healthcare
-              provider.
+              One clear medical history across your healthcare journey. Organize records, identify
+              information needing review, and securely share what matters with your next doctor.
             </p>
 
             {/* CTA Action Buttons */}

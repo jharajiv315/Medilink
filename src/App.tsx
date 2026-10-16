@@ -31,6 +31,8 @@ function AppContent() {
   }, []);
 
   const navigate = (path: string) => {
+    if (path === currentPath) return;
+
     if (path.startsWith('/#')) {
       const id = path.replace('/#', '');
       const el = document.getElementById(id);
@@ -42,7 +44,7 @@ function AppContent() {
 
     window.history.pushState({}, '', path);
     setCurrentPath(path);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0 });
   };
 
   // Route matching

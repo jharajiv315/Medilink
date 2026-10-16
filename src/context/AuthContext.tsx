@@ -4,8 +4,10 @@ import type { UserSession } from '../types/medilink.ts';
 interface AuthContextType {
   currentUser: UserSession;
   allUsers: UserSession[];
+  token: string | null;
   setCurrentUser: (user: UserSession) => void;
-  switchUser: (userId: string) => void;
+  switchUser: (userId: string) => Promise<void>;
+  getAuthHeaders: () => Record<string, string>;
   isPatient: boolean;
   isClinician: boolean;
   isAdmin: boolean;
@@ -31,6 +33,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   });
 
+  const [token, setToken] = useState<string | null>(() => {
+    return localStorage.getItem('medilink_session_token') || null;
+  });
+
   const [allUsers, setAllUsers] = useState<UserSession[]>([
     defaultUser,
     {
@@ -53,6 +59,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   ]);
 
+  // Authenticate initial user session on mount
   useEffect(() => {
     fetch('/api/auth/users')
       .then(res => res.json())
@@ -62,14 +69,57 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       })
       .catch(() => {});
+
+    // Ensure session token exists for current user
+    if (!token && currentUser) {
+      fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: currentUser.id })
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data.token) {
+            setToken(data.token);
+            localStorage.setItem('medilink_session_token', data.token);
+          }
+        })
+        .catch(() => {});
+    }
   }, []);
 
-  const switchUser = (userId: string) => {
+  const switchUser = async (userId: string) => {
     const found = allUsers.find(u => u.id === userId);
     if (found) {
       setCurrentUser(found);
       localStorage.setItem('medilink_current_user', JSON.stringify(found));
+
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId })
+        });
+        const data = await res.json();
+        if (data.token) {
+          setToken(data.token);
+          localStorage.setItem('medilink_session_token', data.token);
+        }
+      } catch (err) {
+        console.warn('Could not exchange token during switch:', err);
+      }
     }
+  };
+
+  const getAuthHeaders = (): Record<string, string> => {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'x-medilink-demo-user': currentUser.id
+    };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    return headers;
   };
 
   return (
@@ -77,8 +127,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       value={{
         currentUser,
         allUsers,
+        token,
         setCurrentUser,
         switchUser,
+        getAuthHeaders,
         isPatient: currentUser.role === 'patient',
         isClinician: currentUser.role === 'clinician',
         isAdmin: currentUser.role === 'admin'

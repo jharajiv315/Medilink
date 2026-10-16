@@ -10,7 +10,14 @@ export interface UserSession {
   patientId?: string;
   title?: string;
   badgeNumber?: string;
+  token?: string;
 }
+
+export type AllergyAssertion =
+  | 'present'
+  | 'explicit_none_known'
+  | 'historical'
+  | 'unknown';
 
 export interface Organization {
   id: string;
@@ -72,6 +79,9 @@ export interface MedicalFact {
   evidenceQuote: string;
   sourcePage?: number;
   verificationStatus: 'unverified' | 'disputed' | 'patient_affirmed' | 'clinician_reconciled';
+  allergyAssertion?: AllergyAssertion;
+  doseMg?: number;
+  frequency?: string;
 }
 
 export type ConflictType =

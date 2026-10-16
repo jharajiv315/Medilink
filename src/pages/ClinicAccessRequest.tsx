@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useAuth } from '../context/AuthContext.tsx';
 import type { AccessCategory } from '../types/medilink.ts';
 
 interface ClinicAccessRequestProps {
@@ -6,6 +7,7 @@ interface ClinicAccessRequestProps {
 }
 
 export const ClinicAccessRequest: React.FC<ClinicAccessRequestProps> = ({ onNavigate }) => {
+  const { currentUser, getAuthHeaders } = useAuth();
   const [patientCode, setPatientCode] = useState('DEMO-P001');
   const [purpose, setPurpose] = useState('Pre-operative Cardiology & Medication Clearance');
   const [durationDays, setDurationDays] = useState(30);
@@ -36,13 +38,13 @@ export const ClinicAccessRequest: React.FC<ClinicAccessRequestProps> = ({ onNavi
     try {
       const res = await fetch('/api/clinic/requests', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           patientCode,
-          requesterName: 'Dr. Marcus Vance',
-          requesterTitle: 'Attending Physician & Lead',
-          requestingOrgId: 'org-sutter',
-          requestingOrgName: 'Sutter Health Clinical Network',
+          requesterName: currentUser.name || 'Dr. Marcus Vance',
+          requesterTitle: currentUser.title || 'Attending Physician & Lead',
+          requestingOrgId: currentUser.organizationId || 'org-sutter',
+          requestingOrgName: currentUser.organization || 'Sutter Health Clinical Network',
           purpose,
           requestedCategories: selectedCategories,
           durationDays

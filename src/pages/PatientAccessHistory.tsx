@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext.tsx';
 import type { AuditEvent } from '../types/medilink.ts';
 
 interface PatientAccessHistoryProps {
@@ -6,12 +7,15 @@ interface PatientAccessHistoryProps {
 }
 
 export const PatientAccessHistory: React.FC<PatientAccessHistoryProps> = ({ onNavigate }) => {
+  const { getAuthHeaders } = useAuth();
   const [logs, setLogs] = useState<AuditEvent[]>([]);
   const [filterAction, setFilterAction] = useState('ALL');
   const [loading, setLoading] = useState(true);
 
   const loadAuditLogs = () => {
-    fetch('/api/audit')
+    fetch('/api/audit', {
+      headers: getAuthHeaders()
+    })
       .then(res => res.json())
       .then(data => {
         if (data.logs) {

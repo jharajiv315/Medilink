@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext.tsx';
 import type { Patient, AccessGrant, DiscrepancyConflict, ClinicalDocument, MedicalFact } from '../types/medilink.ts';
 
 interface ClinicHandoffProps {
@@ -7,6 +8,7 @@ interface ClinicHandoffProps {
 }
 
 export const ClinicHandoff: React.FC<ClinicHandoffProps> = ({ grantId, onNavigate }) => {
+  const { currentUser, switchUser, getAuthHeaders } = useAuth();
   const [data, setData] = useState<{
     grant?: AccessGrant;
     patient?: Patient;
@@ -32,7 +34,13 @@ export const ClinicHandoff: React.FC<ClinicHandoffProps> = ({ grantId, onNavigat
   const [reconciledSuccess, setReconciledSuccess] = useState(false);
 
   const loadHandoffData = () => {
-    fetch(`/api/clinic/handoff/${grantId}`)
+    const headers = getAuthHeaders();
+    if (currentUser.role !== 'clinician' && currentUser.role !== 'admin') {
+      headers['x-medilink-demo-user'] = 'user-dr-vance';
+    }
+    fetch(`/api/clinic/handoff/${grantId}`, {
+      headers
+    })
       .then(async res => {
         const json = await res.json();
         setData(json);
@@ -50,7 +58,7 @@ export const ClinicHandoff: React.FC<ClinicHandoffProps> = ({ grantId, onNavigat
     try {
       const res = await fetch(`/api/clinic/handoff/${grantId}/reconcile`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           conflictId,
           clinicalResolution: resolutionChoice,
@@ -80,7 +88,7 @@ export const ClinicHandoff: React.FC<ClinicHandoffProps> = ({ grantId, onNavigat
   }
 
   // HARD SECURITY CHECK: Access Denied / Revoked Screen
-  if (data.error === 'ACCESS_DENIED') {
+  if (data.error) {
     return (
       <div className="max-w-3xl mx-auto px-6 lg:px-12 py-16">
         <div className="bg-[#FFFFFF] rounded-3xl border-2 border-[#A33837] p-8 sm:p-10 shadow-xl space-y-6 text-center">
@@ -107,6 +115,18 @@ export const ClinicHandoff: React.FC<ClinicHandoffProps> = ({ grantId, onNavigat
           </div>
 
           <div className="pt-2 flex flex-wrap justify-center gap-4">
+            {currentUser.role !== 'clinician' && (
+              <button
+                onClick={async () => {
+                  await switchUser('user-dr-vance');
+                  loadHandoffData();
+                }}
+                className="bg-[#184620] hover:bg-[#113317] text-[#FFFFFF] text-[14px] font-semibold px-6 py-2.5 rounded-xl shadow-md flex items-center gap-2"
+              >
+                <span className="material-symbols-outlined text-[18px]">stethoscope</span>
+                <span>Switch to Dr. Marcus Vance &amp; Unlock</span>
+              </button>
+            )}
             <button
               onClick={() => onNavigate('/clinic/dashboard')}
               className="bg-[#33650E] text-[#FFFFFF] text-[14px] font-semibold px-6 py-2.5 rounded-xl hover:bg-[#28510B]"
@@ -178,37 +198,54 @@ export const ClinicHandoff: React.FC<ClinicHandoffProps> = ({ grantId, onNavigat
         {/* ================= LEFT PANE: PATIENT CLINICAL HISTORY & LABS ================= */}
         <div className="lg:col-span-6 space-y-6">
           {/* Active Diagnoses & Vitals Card */}
-          <div className="bg-[#FFFFFF] rounded-2xl border border-[#DFE5D8] p-6 shadow-sm space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-[#F4F5F1]">
-              <h2 className="font-['Plus_Jakarta_Sans'] text-[16px] font-bold text-[#0B0808] flex items-center gap-2">
-                <span className="material-symbols-outlined text-[#33650E] text-[18px]">
-                  vital_signs
+          {grant?.approvedCategories.includes('Consultations') ? (
+            <div className="bg-[#FFFFFF] rounded-2xl border border-[#DFE5D8] p-6 shadow-sm space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-[#F4F5F1]">
+                <h2 className="font-['Plus_Jakarta_Sans'] text-[16px] font-bold text-[#0B0808] flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[#33650E] text-[18px]">
+                    vital_signs
+                  </span>
+                  <span>Active Conditions &amp; Clinical Baseline</span>
+                </h2>
+                <span className="text-[11px] font-bold text-[#33650E] bg-[#F2F7EB] px-2 py-0.5 rounded-full">
+                  FHIR R4 Verified
                 </span>
-                <span>Active Conditions &amp; Clinical Baseline</span>
-              </h2>
-              <span className="text-[11px] font-bold text-[#33650E] bg-[#F2F7EB] px-2 py-0.5 rounded-full">
-                FHIR R4 Verified
-              </span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 text-[13px]">
-              <div className="p-3 rounded-xl bg-[#F4F5F1] border border-[#DFE5D8]">
-                <span className="text-[11px] text-[#667065] font-bold uppercase block">
-                  Endocrine Status
-                </span>
-                <p className="font-bold text-[#0B0808] mt-0.5">Type 2 Diabetes Mellitus</p>
-                <p className="text-[11px] text-[#42493b]">Latest HbA1c: 6.8% (Sep 2026)</p>
               </div>
 
-              <div className="p-3 rounded-xl bg-[#F4F5F1] border border-[#DFE5D8]">
-                <span className="text-[11px] text-[#667065] font-bold uppercase block">
-                  Cardiovascular Status
-                </span>
-                <p className="font-bold text-[#0B0808] mt-0.5">Essential Hypertension</p>
-                <p className="text-[11px] text-[#42493b]">Controlled on Lisinopril 10mg</p>
+              <div className="grid grid-cols-2 gap-3 text-[13px]">
+                <div className="p-3 rounded-xl bg-[#F4F5F1] border border-[#DFE5D8]">
+                  <span className="text-[11px] text-[#667065] font-bold uppercase block">
+                    Endocrine Status
+                  </span>
+                  <p className="font-bold text-[#0B0808] mt-0.5">Type 2 Diabetes Mellitus</p>
+                  <p className="text-[11px] text-[#42493b]">Latest HbA1c: 6.8% (Sep 2026)</p>
+                </div>
+
+                <div className="p-3 rounded-xl bg-[#F4F5F1] border border-[#DFE5D8]">
+                  <span className="text-[11px] text-[#667065] font-bold uppercase block">
+                    Cardiovascular Status
+                  </span>
+                  <p className="font-bold text-[#0B0808] mt-0.5">Essential Hypertension</p>
+                  <p className="text-[11px] text-[#42493b]">Controlled on Lisinopril 10mg</p>
+                </div>
               </div>
             </div>
-          </div>
+          ) : (
+            <div className="bg-[#FFFFFF] rounded-2xl border border-[#DFE5D8] p-5 shadow-sm space-y-2">
+              <div className="flex items-center justify-between text-[#667065]">
+                <span className="text-[13px] font-bold flex items-center gap-1.5 text-[#0B0808]">
+                  <span className="material-symbols-outlined text-[18px] text-[#985C12]">lock</span>
+                  Conditions &amp; Diagnoses
+                </span>
+                <span className="text-[11px] font-mono bg-[#FFF5E5] text-[#985C12] px-2 py-0.5 rounded border border-[#985C12]/20">
+                  Not available (Excluded from grant)
+                </span>
+              </div>
+              <p className="text-[12px] text-[#42493b]">
+                Patient granted access to: <strong>{grant?.approvedCategories.join(', ') || 'None'}</strong>. Baseline chronic conditions are withheld per minimal data policy.
+              </p>
+            </div>
+          )}
 
           {/* Active Medications & Lab Panels */}
           <div className="bg-[#FFFFFF] rounded-2xl border border-[#DFE5D8] p-6 shadow-sm space-y-4">
@@ -217,37 +254,46 @@ export const ClinicHandoff: React.FC<ClinicHandoffProps> = ({ grantId, onNavigat
                 <span className="material-symbols-outlined text-[#33650E] text-[18px]">
                   medication
                 </span>
-                <span>Medications &amp; Lab Provenance</span>
+                <span>Permitted Clinical Records &amp; Provenance</span>
               </h2>
               <span className="text-[11px] text-[#667065]">
-                {facts.length} Verified Facts
+                {facts.length} Permitted Facts
               </span>
             </div>
 
-            <div className="space-y-3">
-              {facts.map(fact => (
-                <div
-                  key={fact.id}
-                  className="p-3.5 rounded-xl bg-[#F2F7EB] border border-[#DFE5D8] space-y-1.5"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-['Plus_Jakarta_Sans'] text-[13px] font-bold text-[#0B0808]">
-                      {fact.assertion}
-                    </span>
-                    <span className="text-[11px] font-mono text-[#667065]">
-                      {fact.clinicalDate}
-                    </span>
+            {facts.length === 0 ? (
+              <div className="p-6 text-center bg-[#F4F5F1] rounded-xl border border-[#DFE5D8] space-y-1">
+                <p className="text-[13px] font-bold text-[#0B0808]">No records in authorized scopes</p>
+                <p className="text-[12px] text-[#667065]">
+                  Medications and labs are not available under this scoped grant ({grant?.approvedCategories.join(', ')}).
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {facts.map(fact => (
+                  <div
+                    key={fact.id}
+                    className="p-3.5 rounded-xl bg-[#F2F7EB] border border-[#DFE5D8] space-y-1.5"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-['Plus_Jakarta_Sans'] text-[13px] font-bold text-[#0B0808]">
+                        {fact.assertion}
+                      </span>
+                      <span className="text-[11px] font-mono text-[#667065]">
+                        {fact.clinicalDate}
+                      </span>
+                    </div>
+                    <p className="text-[12px] text-[#42493b] italic">
+                      "{fact.evidenceQuote}"
+                    </p>
+                    <div className="flex items-center justify-between pt-1 border-t border-[#DFE5D8] text-[11px] text-[#667065]">
+                      <span>Source: {fact.sourceOrgName}</span>
+                      <span className="font-mono">{fact.documentTitle}</span>
+                    </div>
                   </div>
-                  <p className="text-[12px] text-[#42493b] italic">
-                    "{fact.evidenceQuote}"
-                  </p>
-                  <div className="flex items-center justify-between pt-1 border-t border-[#DFE5D8] text-[11px] text-[#667065]">
-                    <span>Source: {fact.sourceOrgName}</span>
-                    <span className="font-mono">{fact.documentTitle}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Original Source Documents */}

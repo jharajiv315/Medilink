@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext.tsx';
 import type { AccessGrant } from '../types/medilink.ts';
 
 interface ClinicDashboardProps {
@@ -6,6 +7,7 @@ interface ClinicDashboardProps {
 }
 
 export const ClinicDashboard: React.FC<ClinicDashboardProps> = ({ onNavigate }) => {
+  const { currentUser, getAuthHeaders } = useAuth();
   const [dashboardData, setDashboardData] = useState<{
     clinician?: any;
     organization?: any;
@@ -16,7 +18,9 @@ export const ClinicDashboard: React.FC<ClinicDashboardProps> = ({ onNavigate }) 
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/clinic/dashboard')
+    fetch('/api/clinic/dashboard', {
+      headers: getAuthHeaders()
+    })
       .then(res => res.json())
       .then(data => {
         setDashboardData(data);
@@ -28,6 +32,11 @@ export const ClinicDashboard: React.FC<ClinicDashboardProps> = ({ onNavigate }) 
   const activeGrants = dashboardData.activeGrants || [];
   const pendingRequests = dashboardData.pendingRequests || [];
 
+  const clinicianName = currentUser.role === 'clinician' ? currentUser.name : (dashboardData.clinician?.name || 'Dr. Marcus Vance, MD');
+  const clinicianTitle = currentUser.role === 'clinician' ? (currentUser.title || 'Attending Physician') : 'Attending Physician & Clinical Lead';
+  const clinicianOrg = currentUser.role === 'clinician' ? (currentUser.organization || 'Sutter Health') : 'Sutter Health Clinical Network';
+  const badgeNumber = currentUser.badgeNumber || 'MD-84920';
+
   return (
     <div className="max-w-7xl mx-auto px-6 lg:px-12 py-8 space-y-8">
       {/* Clinician Header */}
@@ -35,13 +44,13 @@ export const ClinicDashboard: React.FC<ClinicDashboardProps> = ({ onNavigate }) 
         <div>
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#F2F7EB] text-[#33650E] text-[11px] font-bold border border-[#DFE5D8] mb-2">
             <span className="material-symbols-outlined text-[14px]">stethoscope</span>
-            <span>Clinician Workspace • MD-84920</span>
+            <span>Clinician Workspace • {badgeNumber}</span>
           </div>
           <h1 className="font-['Plus_Jakarta_Sans'] text-[28px] sm:text-[32px] font-bold text-[#0B0808]">
-            Dr. Marcus Vance, MD
+            {clinicianName}
           </h1>
           <p className="font-['DM_Sans'] text-[15px] text-[#42493b] mt-1">
-            Attending Physician &amp; Clinical Lead • Sutter Health Clinical Network
+            {clinicianTitle} • {clinicianOrg}
           </p>
         </div>
 
@@ -196,7 +205,10 @@ export const ClinicDashboard: React.FC<ClinicDashboardProps> = ({ onNavigate }) 
         </div>
 
         <button
-          onClick={() => onNavigate('/clinic/handoff/grant-sutter-01')}
+          onClick={() => {
+            const activeId = activeGrants[0]?.id || 'grant-1792166349001';
+            onNavigate(`/clinic/handoff/${activeId}`);
+          }}
           className="bg-[#985C12] hover:bg-[#7e4b0e] text-[#FFFFFF] text-[13px] font-semibold px-4 py-2 rounded-xl shrink-0 transition-colors"
         >
           Reconcile in Workspace

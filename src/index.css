@@ -2,20 +2,50 @@
 
 @layer base {
   :root {
+    --canvas: #F7FBF0;
+    --surface: #FFFFFF;
+    --surface-muted: #F2F7EB;
+    --surface-warm: #F6F8F2;
+
+    --forest: #33650E;
+    --forest-hover: #285208;
+    --forest-deep: #214C00;
+    --sage: #D0E4B6;
+    --lime-accent: #78A541;
+
+    --ink: #0B0808;
+    --body-text: #484D45;
+    --muted-text: #667065;
+    --border: #DFE5D8;
+
+    --warning: #985C12;
+    --warning-surface: #FFF5E5;
+
+    --danger: #A33837;
+    --danger-surface: #FFF0EF;
+
+    --success: #33650E;
+    --success-surface: #EDF6E6;
+
     --font-headline: "Plus Jakarta Sans", sans-serif;
     --font-body: "DM Sans", sans-serif;
   }
 
+  html {
+    scrollbar-gutter: stable;
+  }
+
   body {
-    background-color: #f7fbf0;
-    color: #181d16;
+    background-color: var(--canvas);
+    color: var(--body-text);
     font-family: var(--font-body);
     -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
   }
 
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-headline);
-    color: #0b0808;
+    color: var(--ink);
     letter-spacing: -0.015em;
   }
 }

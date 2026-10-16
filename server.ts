@@ -1,31 +1,35 @@
+import 'dotenv/config';
 import express, { Request, Response } from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import crypto from 'crypto';
-import { getDb, resetDb } from './src/server/mockDb.ts';
+import { getDb, resetDb, saveDb } from './src/server/mockDb.ts';
 import {
   detectConflicts,
+  mergeConflictsPreservingReviews,
   applyPatientAffirmation,
   applyClinicianReconciliation
 } from './src/utils/discrepancyEngine.ts';
 import {
   evaluateGrantStatus,
   canAccessCategory,
-  filterRecordsByScopes
+  filterRecordsByScopes,
+  authorizeClinicianHandoffAccess
 } from './src/utils/consentEngine.ts';
 import type {
   AccessCategory,
   ClinicalDocument,
   MedicalFact,
   AuditEvent,
-  AccessGrant
+  AccessGrant,
+  UserSession
 } from './src/types/medilink.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const port = 3000;
+const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3002;
 
 app.use(express.json());
 
@@ -39,8 +43,89 @@ function logAuditEvent(event: Omit<AuditEvent, 'id' | 'timestamp' | 'ipHash'>): 
     ipHash: `ip-${crypto.createHash('sha256').update(event.actorName + Date.now()).digest('hex').substring(0, 8)}`
   };
   db.auditLogs.unshift(newEvent);
+  saveDb();
   return newEvent;
 }
+
+const SESSION_SECRET = process.env.SESSION_SECRET || 'medilink-production-hmac-sha256-key-92841';
+
+function signSessionToken(user: UserSession): string {
+  const payload = {
+    userId: user.id,
+    name: user.name,
+    role: user.role,
+    email: user.email,
+    patientId: user.patientId,
+    organizationId: user.organizationId,
+    organization: user.organization,
+    title: user.title,
+    badgeNumber: user.badgeNumber,
+    exp: Date.now() + 24 * 60 * 60 * 1000 // 24 hours
+  };
+  const b64Payload = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  const hmac = crypto.createHmac('sha256', SESSION_SECRET).update(b64Payload).digest('base64url');
+  return `mlk_${b64Payload}.${hmac}`;
+}
+
+function verifySessionToken(token: string): UserSession | null {
+  if (!token || !token.startsWith('mlk_')) return null;
+  try {
+    const raw = token.slice(4);
+    const [b64Payload, signature] = raw.split('.');
+    if (!b64Payload || !signature) return null;
+    const expectedSig = crypto.createHmac('sha256', SESSION_SECRET).update(b64Payload).digest('base64url');
+    if (signature !== expectedSig) return null;
+    const payload = JSON.parse(Buffer.from(b64Payload, 'base64url').toString('utf-8'));
+    if (payload.exp && Date.now() > payload.exp) return null;
+    return {
+      id: payload.userId,
+      name: payload.name,
+      role: payload.role,
+      email: payload.email,
+      patientId: payload.patientId,
+      organizationId: payload.organizationId,
+      organization: payload.organization,
+      title: payload.title,
+      badgeNumber: payload.badgeNumber
+    };
+  } catch {
+    return null;
+  }
+}
+
+// Session authentication middleware
+function authenticateSession(req: Request, res: Response, next: () => void) {
+  const authHeader = req.headers.authorization;
+  const token = authHeader && authHeader.startsWith('Bearer ')
+    ? authHeader.slice(7)
+    : (req.headers['x-medilink-token'] as string);
+
+  if (token) {
+    const session = verifySessionToken(token);
+    if (session) {
+      (req as any).user = session;
+      return next();
+    }
+  }
+
+  // Fallback for seamless demo testing if userId header is provided
+  const demoUserId = req.headers['x-medilink-demo-user'] as string;
+  if (demoUserId) {
+    const db = getDb();
+    const user = db.users.find(u => u.id === demoUserId);
+    if (user) {
+      (req as any).user = user;
+      return next();
+    }
+  }
+
+  // Default to primary demo patient session if in simulation sandbox
+  const db = getDb();
+  (req as any).user = db.users[0];
+  next();
+}
+
+app.use(authenticateSession);
 
 // ======================== API ROUTES ========================
 
@@ -57,7 +142,13 @@ app.post('/api/auth/login', (req: Request, res: Response) => {
   if (!user) {
     return res.status(404).json({ error: 'User not found in demo directory' });
   }
-  return res.json({ user, token: `jwt-sim-${user.id}` });
+  const token = signSessionToken(user);
+  return res.json({ user, token });
+});
+
+app.get('/api/auth/me', (req: Request, res: Response) => {
+  const user = (req as any).user;
+  res.json({ user });
 });
 
 app.get('/api/auth/users', (_req: Request, res: Response) => {
@@ -68,6 +159,7 @@ app.get('/api/auth/users', (_req: Request, res: Response) => {
 // 3. Reset DB for repeatable demo testing
 app.post('/api/db/reset', (_req: Request, res: Response) => {
   resetDb();
+  saveDb();
   res.json({ success: true, message: 'Database reset to initial synthetic dataset' });
 });
 
@@ -86,15 +178,22 @@ app.get('/api/patients/:patientId/summary', (req: Request, res: Response) => {
   const activeGrants = db.grants.filter(g => g.patientId === patientId && evaluateGrantStatus(g) === 'active');
   const pendingGrants = db.grants.filter(g => g.patientId === patientId && g.status === 'pending');
 
-  const uniqueOrgs = new Set(patientDocs.map(d => d.sourceOrganizationId));
+  const uniqueOrgs = new Set([
+    ...patientDocs.map(d => d.sourceOrganizationName),
+    ...patientFacts.map(f => f.sourceOrgName)
+  ]);
+
+  const consultationsCount = patientDocs.filter(d => d.documentType === 'specialty_consult' || d.documentType === 'discharge_summary' || d.documentType === 'allergy_challenge').length;
+  const labsCount = patientDocs.filter(d => d.documentType === 'lab_report').length + patientFacts.filter(f => f.factType === 'lab_value').length;
+  const flaggedDiscrepanciesCount = patientConflicts.filter(c => c.status !== 'clinician_reconciled').length;
 
   res.json({
     patient,
     metrics: {
-      connectedHealthSystems: Math.max(3, uniqueOrgs.size),
-      consultationsCount: 14,
-      labsCount: 28,
-      flaggedDiscrepanciesCount: patientConflicts.filter(c => c.status !== 'clinician_reconciled').length,
+      connectedHealthSystems: uniqueOrgs.size,
+      consultationsCount,
+      labsCount,
+      flaggedDiscrepanciesCount,
       activeGrantsCount: activeGrants.length,
       pendingGrantsCount: pendingGrants.length,
       totalDocuments: patientDocs.length,
@@ -188,7 +287,17 @@ app.post('/api/patients/:patientId/ingest', (req: Request, res: Response) => {
   }
 
   const docId = `doc-${Date.now()}`;
-  const sha256Hash = crypto.createHash('sha256').update(rawText + Date.now()).digest('hex');
+  const sha256Hash = crypto.createHash('sha256').update(rawText).digest('hex');
+
+  // Verify document deduplication via content hash
+  const existingDoc = db.documents.find(d => d.patientId === patientId && d.sha256Hash === sha256Hash);
+  if (existingDoc) {
+    return res.status(409).json({
+      error: 'DUPLICATE_DOCUMENT',
+      message: `Document "${existingDoc.title}" with identical cryptographic digest (${sha256Hash.substring(0, 8)}...) has already been ingested.`,
+      document: existingDoc
+    });
+  }
 
   const newDoc: ClinicalDocument = {
     id: docId,
@@ -232,12 +341,17 @@ app.post('/api/patients/:patientId/ingest', (req: Request, res: Response) => {
     }
   }
 
-  // Re-run discrepancy detection
+  // Re-run discrepancy detection while strictly preserving prior clinician reconciliations
   const patientFacts = db.facts.filter(f => f.patientId === patientId);
-  const updatedConflicts = detectConflicts(patientFacts);
+  const freshConflicts = detectConflicts(patientFacts);
+  const preservedConflicts = mergeConflictsPreservingReviews(
+    db.conflicts.filter(c => c.patientId === patientId),
+    freshConflicts
+  );
+
   db.conflicts = [
     ...db.conflicts.filter(c => c.patientId !== patientId),
-    ...updatedConflicts
+    ...preservedConflicts
   ];
 
   logAuditEvent({
@@ -247,8 +361,10 @@ app.post('/api/patients/:patientId/ingest', (req: Request, res: Response) => {
     patientId,
     action: 'DOCUMENT_INGESTED',
     outcome: 'SUCCESS',
-    details: `Ingested ${newDoc.title} (${newDoc.fileName}) with ${newFacts.length} verified clinical facts.`
+    details: `Ingested ${newDoc.title} (${newDoc.fileName}) with ${newFacts.length} clinical facts.`
   });
+
+  saveDb();
 
   res.json({
     document: newDoc,
@@ -288,6 +404,8 @@ app.post('/api/patients/:patientId/conflicts/:conflictId/affirm', (req: Request,
     details: `Patient affirmation recorded on ${conflict.title}: "${affirmationStatement}"`
   });
 
+  saveDb();
+
   res.json({ conflict: updated });
 });
 
@@ -304,15 +422,23 @@ app.get('/api/patients/:patientId/consents', (req: Request, res: Response) => {
 
 app.post('/api/patients/:patientId/consents/:grantId/approve', (req: Request, res: Response) => {
   const { patientId, grantId } = req.params;
-  const { approvedCategories, durationDays } = req.body;
+  const { approvedCategories, durationDays, durationMinutes } = req.body;
   const db = getDb();
   const grant = db.grants.find(g => g.id === grantId && g.patientId === patientId);
   if (!grant) {
     return res.status(404).json({ error: 'Grant request not found' });
   }
 
-  const days = durationDays || grant.accessDurationDays || 30;
-  const expiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
+  let expiresAt: string;
+  let durationDesc: string;
+  if (durationMinutes && typeof durationMinutes === 'number') {
+    expiresAt = new Date(Date.now() + durationMinutes * 60 * 1000).toISOString();
+    durationDesc = `${durationMinutes}-minute`;
+  } else {
+    const days = durationDays || grant.accessDurationDays || 30;
+    expiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
+    durationDesc = `${days}-day`;
+  }
 
   grant.status = 'active';
   grant.approvedCategories = approvedCategories || grant.requestedCategories;
@@ -326,8 +452,10 @@ app.post('/api/patients/:patientId/consents/:grantId/approve', (req: Request, re
     patientId,
     action: 'ACCESS_APPROVED',
     outcome: 'SUCCESS',
-    details: `Approved ${days}-day access for ${grant.requesterName} (${grant.requestingOrgName}) for scopes: ${grant.approvedCategories.join(', ')}`
+    details: `Approved ${durationDesc} access for ${grant.requesterName} (${grant.requestingOrgName}) for scopes: ${grant.approvedCategories.join(', ')}`
   });
+
+  saveDb();
 
   res.json({ grant, effectiveStatus: 'active' });
 });
@@ -354,6 +482,8 @@ app.post('/api/patients/:patientId/consents/:grantId/revoke', (req: Request, res
     outcome: 'SUCCESS',
     details: `Revoked access grant for ${grant.requesterName} (${grant.requestingOrgName}). Reason: ${grant.revocationReason}`
   });
+
+  saveDb();
 
   res.json({ grant, effectiveStatus: 'revoked' });
 });
@@ -406,6 +536,8 @@ app.post('/api/clinic/requests', (req: Request, res: Response) => {
     details: `Clinician submitted access request for ${patient.name} (${patient.patientCode}) for scopes: ${newGrant.requestedCategories.join(', ')}`
   });
 
+  saveDb();
+
   res.json({ grant: newGrant });
 });
 
@@ -441,26 +573,30 @@ app.get('/api/clinic/handoff/:grantId', (req: Request, res: Response) => {
     return res.status(404).json({ error: 'Access grant not found' });
   }
 
-  const currentStatus = evaluateGrantStatus(grant);
+  const caller: UserSession = (req as any).user || db.users.find(u => u.role === 'clinician') || db.users[1];
+  const authCheck = authorizeClinicianHandoffAccess(grant, {
+    userId: caller.id,
+    role: caller.role,
+    organizationId: caller.organizationId,
+    organizationName: caller.organization,
+    patientId: caller.patientId
+  });
 
-  // Hard security check: if revoked, expired, or pending, block immediately!
-  if (currentStatus !== 'active') {
+  if (!authCheck.authorized) {
     logAuditEvent({
-      actorName: grant.requesterName || 'Clinician',
-      actorRole: 'clinician',
-      organization: grant.requestingOrgName,
+      actorName: caller.name || grant.requesterName || 'Clinician',
+      actorRole: (caller.role as any) || 'clinician',
+      organization: caller.organization || grant.requestingOrgName,
       patientId: grant.patientId,
       action: 'ACCESS_DENIED',
       outcome: 'DENIED',
-      details: `Attempted handoff retrieval blocked: Grant ${grantId} is in '${currentStatus}' state.`
+      details: `Attempted handoff retrieval blocked: ${authCheck.message}`
     });
 
-    return res.status(403).json({
-      error: 'ACCESS_DENIED',
-      status: currentStatus,
-      message: currentStatus === 'revoked'
-        ? 'Access Denied: The patient has revoked authorization for this clinic.'
-        : `Access Denied: Grant token is '${currentStatus}'.`
+    return res.status(authCheck.httpStatus).json({
+      error: authCheck.errorCode,
+      status: evaluateGrantStatus(grant),
+      message: authCheck.message
     });
   }
 
@@ -570,6 +706,8 @@ app.post('/api/clinic/handoff/:grantId/reconcile', (req: Request, res: Response)
     outcome: 'SUCCESS',
     details: `Clinician marked ${conflict.title} as Reconciled: "${clinicalResolution}"`
   });
+
+  saveDb();
 
   res.json({ success: true, conflict: reconciled, newFact: reconciledFact });
 });

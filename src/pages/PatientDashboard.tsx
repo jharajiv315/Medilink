@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext.tsx';
 import type { Patient } from '../types/medilink.ts';
 
 interface PatientDashboardProps {
@@ -6,6 +7,9 @@ interface PatientDashboardProps {
 }
 
 export const PatientDashboard: React.FC<PatientDashboardProps> = ({ onNavigate }) => {
+  const { currentUser, getAuthHeaders } = useAuth();
+  const patientId = currentUser.patientId || 'DEMO-P001';
+
   const [data, setData] = useState<{
     patient?: Patient;
     metrics?: {
@@ -22,24 +26,26 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({ onNavigate }
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/patients/DEMO-P001/summary')
+    fetch(`/api/patients/${patientId}/summary`, {
+      headers: getAuthHeaders()
+    })
       .then(res => res.json())
       .then(resData => {
         setData(resData);
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, []);
+  }, [patientId]);
 
   const metrics = data.metrics || {
-    connectedHealthSystems: 3,
-    consultationsCount: 14,
-    labsCount: 28,
-    flaggedDiscrepanciesCount: 1,
-    activeGrantsCount: 1,
-    pendingGrantsCount: 1,
-    totalDocuments: 4,
-    totalExtractedFacts: 6
+    connectedHealthSystems: 0,
+    consultationsCount: 0,
+    labsCount: 0,
+    flaggedDiscrepanciesCount: 0,
+    activeGrantsCount: 0,
+    pendingGrantsCount: 0,
+    totalDocuments: 0,
+    totalExtractedFacts: 0
   };
 
   return (

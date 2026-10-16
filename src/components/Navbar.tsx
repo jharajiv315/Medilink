@@ -39,21 +39,24 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath, onNavigate }) => {
   const { currentUser, allUsers, switchUser } = useAuth();
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
   const [showCommandSearch, setShowCommandSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [resetSuccess, setResetSuccess] = useState(false);
+  const [activeGrantId, setActiveGrantId] = useState<string>('grant-1792166349001');
 
   const dropdownRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  // Track window scroll for elevation shift
+  // Poll for active clinical grant once on mount
   useEffect(() => {
-    const handleScroll = () => {
-      setScrolled(window.scrollY > 8);
-    };
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
+    fetch('/api/clinic/dashboard')
+      .then(res => res.json())
+      .then(data => {
+        if (data.activeGrants && data.activeGrants.length > 0) {
+          setActiveGrantId(data.activeGrants[data.activeGrants.length - 1].id);
+        }
+      })
+      .catch(() => {});
   }, []);
 
   // Close dropdown when clicking outside
@@ -186,13 +189,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath, onNavigate }) => {
 
   return (
     <>
-      <header
-        className={`fixed top-0 left-0 right-0 w-full z-40 transition-all duration-300 ${
-          scrolled
-            ? 'bg-white/90 backdrop-blur-xl border-b border-[#E3E8DC] shadow-[0_4px_24px_-4px_rgba(20,35,14,0.07),0_1px_3px_rgba(20,35,14,0.04)]'
-            : 'bg-white/95 backdrop-blur-md border-b border-[#E8ECE2]'
-        }`}
-      >
+      <header className="fixed top-0 left-0 right-0 w-full z-40 bg-white border-b border-[#E3E8DC] shadow-xs">
         {/* Top ambient hairline accent bar */}
         <div className="h-[2px] w-full bg-gradient-to-r from-[#214D09] via-[#33650E] to-[#78A541]" />
 
@@ -226,10 +223,9 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath, onNavigate }) => {
                   <circle cx="12" cy="12" r="1.2" fill="#FFFFFF" />
                 </svg>
 
-                {/* Subtle outer live pulse ring */}
-                <span className="absolute -top-0.5 -right-0.5 flex h-2.5 w-2.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#99dc46] opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#78A541] border border-white" />
+                {/* Clean live indicator ring without continuous ping layout shift */}
+                <span className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-[#78A541] border border-white" />
                 </span>
               </div>
 
@@ -411,7 +407,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath, onNavigate }) => {
                     <span>Request Records</span>
                   </button>
                   <button
-                    onClick={() => onNavigate('/clinic/handoff/grant-sutter-01')}
+                    onClick={() => onNavigate(`/clinic/handoff/${activeGrantId}`)}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12.5px] font-semibold transition-all duration-200 ${
                       currentPath.includes('/clinic/handoff')
                         ? 'bg-white text-[#214D09] shadow-sm font-bold ring-1 ring-black/[0.04]'
@@ -420,7 +416,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath, onNavigate }) => {
                   >
                     <Activity className="w-3.5 h-3.5 text-[#33650E]" />
                     <span>Handoff (Ananya S.)</span>
-                    <span className="w-2 h-2 rounded-full bg-[#78A541] animate-pulse" />
+                    <span className="w-2 h-2 rounded-full bg-[#78A541]" />
                   </button>
                   <button
                     onClick={() => onNavigate('/patient/access-history')}

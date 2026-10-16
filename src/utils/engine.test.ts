@@ -3,12 +3,15 @@ import assert from 'node:assert/strict';
 import {
   detectConflicts,
   applyPatientAffirmation,
-  applyClinicianReconciliation
+  applyClinicianReconciliation,
+  normalizeAllergyAssertion,
+  mergeConflictsPreservingReviews
 } from './discrepancyEngine.ts';
 import {
   evaluateGrantStatus,
   canAccessCategory,
-  filterRecordsByScopes
+  filterRecordsByScopes,
+  authorizeClinicianHandoffAccess
 } from './consentEngine.ts';
 import type { MedicalFact, AccessGrant } from '../types/medilink.ts';
 
@@ -174,4 +177,224 @@ test('filterRecordsByScopes filters out non-approved categories and enforces rev
   assert.equal(revokedResult.isAuthorized, false);
   assert.equal(revokedResult.allowedRecords.length, 0);
   assert.equal(revokedResult.deniedCount, 3);
+});
+
+test('normalizeAllergyAssertion never assumes missing allergy field is negative', () => {
+  const unknownFact: MedicalFact = {
+    id: 'f-unk',
+    patientId: 'P1',
+    documentId: 'd-unk',
+    documentTitle: 'Unspecified consult',
+    sourceOrgName: 'Clinic X',
+    factType: 'allergy',
+    conceptKey: 'penicillin',
+    assertion: 'Allergy status unknown',
+    value: 'Unspecified',
+    clinicalDate: '2026-01-01',
+    evidenceQuote: 'Patient was unresponsive, allergy status unconfirmed',
+    verificationStatus: 'unverified'
+  };
+
+  assert.equal(normalizeAllergyAssertion(unknownFact), 'unknown');
+
+  // Ensure an unknown fact does not create a conflict with a known positive fact
+  const positiveFact: MedicalFact = {
+    id: 'f-pos',
+    patientId: 'P1',
+    documentId: 'd-pos',
+    documentTitle: 'Hospital Note',
+    sourceOrgName: 'Hospital Y',
+    factType: 'allergy',
+    conceptKey: 'penicillin',
+    assertion: 'Penicillin Allergy',
+    value: 'Anaphylaxis to amoxicillin',
+    clinicalDate: '2026-02-01',
+    evidenceQuote: 'Hives and respiratory distress after amoxicillin',
+    verificationStatus: 'unverified'
+  };
+
+  const conflicts = detectConflicts([unknownFact, positiveFact]);
+  assert.equal(conflicts.length, 0, 'Unknown allergy status must NOT be assumed negative or trigger false conflict');
+});
+
+test('detectConflicts classifies chronological dosage changes as dosage_escalation vs redundant_therapy', () => {
+  // Chronological change (e.g. 500mg in Jan -> 1000mg in Jun)
+  const janRx: MedicalFact = {
+    id: 'rx1',
+    patientId: 'P1',
+    documentId: 'd1',
+    documentTitle: 'Jan Rx',
+    sourceOrgName: 'Primary Clinic',
+    factType: 'medication',
+    conceptKey: 'metformin',
+    assertion: 'Metformin 500mg daily',
+    value: '500mg daily PO',
+    clinicalDate: '2026-01-15',
+    evidenceQuote: 'Start Metformin 500mg daily for glucose control',
+    verificationStatus: 'unverified'
+  };
+
+  const junRx: MedicalFact = {
+    id: 'rx2',
+    patientId: 'P1',
+    documentId: 'd2',
+    documentTitle: 'Jun Rx',
+    sourceOrgName: 'Endocrine Specialist',
+    factType: 'medication',
+    conceptKey: 'metformin',
+    assertion: 'Metformin 1000mg BID',
+    value: '1000mg BID PO',
+    clinicalDate: '2026-06-20',
+    evidenceQuote: 'Escalate to Metformin 1000mg BID with meals',
+    verificationStatus: 'unverified'
+  };
+
+  const titrationConflicts = detectConflicts([janRx, junRx]);
+  assert.equal(titrationConflicts.length, 1);
+  assert.equal(titrationConflicts[0].conflictType, 'dosage_escalation');
+  assert.equal(titrationConflicts[0].clinicalSignificance, 'moderate');
+
+  // Concurrent contradictory prescriptions (e.g. same week)
+  const concurrentRx: MedicalFact = {
+    id: 'rx3',
+    patientId: 'P1',
+    documentId: 'd3',
+    documentTitle: 'Urgent Care Rx',
+    sourceOrgName: 'Urgent Care B',
+    factType: 'medication',
+    conceptKey: 'metformin',
+    assertion: 'Metformin 850mg daily',
+    value: '850mg daily PO',
+    clinicalDate: '2026-06-22',
+    evidenceQuote: 'Prescribed Metformin 850mg daily',
+    verificationStatus: 'unverified'
+  };
+
+  const concurrentConflicts = detectConflicts([junRx, concurrentRx]);
+  assert.equal(concurrentConflicts.length, 1);
+  assert.equal(concurrentConflicts[0].conflictType, 'redundant_therapy');
+  assert.equal(concurrentConflicts[0].clinicalSignificance, 'high');
+});
+
+test('mergeConflictsPreservingReviews preserves clinician reconciliations when new facts arrive', () => {
+  const fact1: MedicalFact = {
+    id: 'f1',
+    patientId: 'P1',
+    documentId: 'd1',
+    documentTitle: 'Hospital',
+    sourceOrgName: 'Hospital',
+    factType: 'allergy',
+    conceptKey: 'penicillin',
+    assertion: 'Penicillin allergy',
+    value: 'Allergic - rash',
+    clinicalDate: '2021-01-01',
+    evidenceQuote: 'Rash reported',
+    verificationStatus: 'unverified'
+  };
+
+  const fact2: MedicalFact = {
+    id: 'f2',
+    patientId: 'P1',
+    documentId: 'd2',
+    documentTitle: 'Clinic',
+    sourceOrgName: 'Clinic',
+    factType: 'allergy',
+    conceptKey: 'penicillin',
+    assertion: 'Negative skin test',
+    value: 'No known drug allergies',
+    clinicalDate: '2023-01-01',
+    evidenceQuote: 'Skin test negative',
+    verificationStatus: 'unverified'
+  };
+
+  const initialConflicts = detectConflicts([fact1, fact2]);
+  assert.equal(initialConflicts.length, 1);
+
+  // Clinician reconciles the conflict
+  const reconciled = applyClinicianReconciliation(
+    initialConflicts[0],
+    { name: 'Dr. Vance', role: 'Attending', org: 'Sutter Health' },
+    'De-labeled Penicillin Allergy',
+    'Oral challenge confirmed safe'
+  );
+
+  // Now a new unrelated fact is ingested
+  const fact3: MedicalFact = {
+    id: 'f3',
+    patientId: 'P1',
+    documentId: 'd3',
+    documentTitle: 'Cardiology',
+    sourceOrgName: 'Cardio Clinic',
+    factType: 'medication',
+    conceptKey: 'lisinopril',
+    assertion: 'Lisinopril 10mg',
+    value: '10mg daily',
+    clinicalDate: '2026-03-01',
+    evidenceQuote: 'Prescribed lisinopril',
+    verificationStatus: 'unverified'
+  };
+
+  const freshDetected = detectConflicts([fact1, fact2, fact3]);
+  const preserved = mergeConflictsPreservingReviews([reconciled], freshDetected);
+
+  assert.equal(preserved.length, 1);
+  assert.equal(preserved[0].status, 'clinician_reconciled');
+  assert.equal(preserved[0].clinicianReview?.reviewerName, 'Dr. Vance');
+  assert.equal(preserved[0].clinicianReview?.clinicalResolution, 'De-labeled Penicillin Allergy');
+});
+
+test('authorizeClinicianHandoffAccess strictly validates roles, organizations, and grant states', () => {
+  const baseGrant: AccessGrant = {
+    id: 'grant-01',
+    patientId: 'P1',
+    patientName: 'Ananya Sharma',
+    requestingOrgId: 'org-sutter',
+    requestingOrgName: 'Sutter Health',
+    requesterName: 'Dr. Marcus Vance',
+    requesterTitle: 'Chief of Medicine',
+    purpose: 'Specialty Consultation',
+    requestedCategories: ['Allergies', 'Medications'],
+    approvedCategories: ['Allergies'],
+    status: 'active',
+    requestedAt: '2026-10-01T10:00:00.000Z',
+    expiresAt: '2026-11-01T10:00:00.000Z',
+    accessDurationDays: 30
+  };
+
+  // Valid clinician from Sutter Health
+  const validCheck = authorizeClinicianHandoffAccess(
+    baseGrant,
+    { userId: 'u1', role: 'clinician', organizationId: 'org-sutter' },
+    new Date('2026-10-15T10:00:00.000Z')
+  );
+  assert.equal(validCheck.authorized, true);
+  assert.equal(validCheck.httpStatus, 200);
+
+  // Patient attempting to access clinician handoff endpoint
+  const patientCheck = authorizeClinicianHandoffAccess(
+    baseGrant,
+    { userId: 'u2', role: 'patient' },
+    new Date('2026-10-15T10:00:00.000Z')
+  );
+  assert.equal(patientCheck.authorized, false);
+  assert.equal(patientCheck.errorCode, 'ROLE_UNAUTHORIZED');
+
+  // Clinician from different hospital trying to use Sutter's grant ID
+  const wrongOrgCheck = authorizeClinicianHandoffAccess(
+    baseGrant,
+    { userId: 'u3', role: 'clinician', organizationId: 'org-kaiser' },
+    new Date('2026-10-15T10:00:00.000Z')
+  );
+  assert.equal(wrongOrgCheck.authorized, false);
+  assert.equal(wrongOrgCheck.errorCode, 'ORG_MISMATCH');
+
+  // Revoked grant check
+  const revokedGrant: AccessGrant = { ...baseGrant, status: 'revoked', revokedAt: '2026-10-10T10:00:00.000Z' };
+  const revokedCheck = authorizeClinicianHandoffAccess(
+    revokedGrant,
+    { userId: 'u1', role: 'clinician', organizationId: 'org-sutter' },
+    new Date('2026-10-15T10:00:00.000Z')
+  );
+  assert.equal(revokedCheck.authorized, false);
+  assert.equal(revokedCheck.errorCode, 'GRANT_REVOKED');
 });
