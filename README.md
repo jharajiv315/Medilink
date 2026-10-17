@@ -27,7 +27,7 @@ MediLink gives patients one place to organize health records, inspect documented
 - [Accounts and access](#accounts-and-access)
 - [Testing](#testing)
 - [Deployment](#deployment)
-- [Source map](#source-map)
+- [Folder structure](#folder-structure)
 - [Security and scope](#security-and-scope)
 - [License](#license)
 
@@ -200,27 +200,34 @@ Expected response:
 {"status":"healthy","service":"MediLink Continuity Core","version":"1.0.0","storage":"supabase"}
 ```
 
-## Source map
+## Folder structure
 
 <details>
-<summary>Show repository structure</summary>
+<summary>Show the complete repository map</summary>
 
 ```text
-api/index.ts                 Vercel API adapter
-server.ts                    Express routes and authentication
-src/App.tsx                  Client route selection and portal shell
-src/components/              Shared UI, layout, chat, and botanical theme
-src/context/                 Client authentication state
-src/pages/                   Landing, auth, patient, clinician, and admin screens
-src/server/                  Persistence, TLS, chat handler, and API tests
-src/types/                   Shared TypeScript contracts
-src/utils/                   Consent, discrepancy, and extraction engines
-public/assets/               Healthcare photography and botanical artwork
-scripts/                     Migration, import, cleanup, and live verification
-supabase/migrations/         Database schema and runtime permissions
-docs/                        Operations, demo guide, results, and snapshots
-data/medilink_store.json     Synthetic local seed/demo dataset
-vercel.json                  Production routing and function region
+MediLink/
+├── api/index.ts                 Vercel API adapter
+├── src/
+│   ├── App.tsx                  Client routes and portal shell
+│   ├── main.tsx                 React entry point
+│   ├── index.css                Global styles and design tokens
+│   ├── components/              Shared UI, layout, chat, and botanical theme
+│   ├── context/                 Client authentication state
+│   ├── pages/                   Landing, auth, patient, clinician, and admin screens
+│   ├── server/                  Persistence, TLS, chat handler, and API tests
+│   ├── types/                   Shared TypeScript contracts
+│   └── utils/                   Consent, discrepancy, and extraction engines
+├── public/assets/               Healthcare photography and botanical artwork
+├── scripts/                     Migration, import, cleanup, and live verification
+├── supabase/migrations/         Database schema and runtime permissions
+├── docs/                        Operations, demo guide, results, and snapshots
+├── data/medilink_store.json     Synthetic local seed/demo dataset
+├── server.ts                    Express routes and authentication
+├── vercel.json                  Production routing and function region
+├── package.json                 Scripts and dependencies
+├── .env.example                 Environment variable template
+└── LICENSE                      Project usage terms
 ```
 
 </details>
