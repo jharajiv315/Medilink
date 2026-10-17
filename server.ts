@@ -4,6 +4,8 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import crypto from 'crypto';
 import { getDb, resetDb, saveDb } from './src/server/mockDb.ts';
+import { databaseMiddleware } from './src/server/supabaseStore.ts';
+import { usesSupabase } from './src/server/requestStore.ts';
 import {
   detectConflicts,
   mergeConflictsPreservingReviews,
@@ -93,7 +95,7 @@ function provisionConfiguredSeedCredentials(): void {
   }
 }
 
-provisionConfiguredSeedCredentials();
+if (!usesSupabase()) provisionConfiguredSeedCredentials();
 
 function createSession(user: UserSession): string {
   const db = getDb();
@@ -144,7 +146,7 @@ function resolveDemoClinicianSession(token: string): UserSession | null {
 }
 
 function resolveSession(token: string): UserSession | null {
-  const demoUser = resolveDemoClinicianSession(token);
+  const demoUser = usesSupabase() ? null : resolveDemoClinicianSession(token);
   if (demoUser) return demoUser;
   if (!/^[A-Za-z0-9_-]{40,}$/.test(token)) return null;
   const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
@@ -189,6 +191,7 @@ function authenticateSession(req: Request, res: Response, next: () => void) {
   next();
 }
 
+app.use(databaseMiddleware(provisionConfiguredSeedCredentials));
 app.use(authenticateSession);
 
 function getRequestUser(req: Request): UserSession {
@@ -213,7 +216,7 @@ function canAccessGrant(user: UserSession, grant: AccessGrant): boolean {
 
 // 1. Health check
 app.get('/api/health', (_req: Request, res: Response) => {
-  res.json({ status: 'healthy', service: 'MediLink Continuity Core', version: '1.0.0' });
+  res.json({ status: 'healthy', service: 'MediLink Continuity Core', version: '1.0.0', storage: usesSupabase() ? 'supabase' : 'local-json' });
 });
 
 // 2. Auth & Session
@@ -223,7 +226,7 @@ app.post('/api/auth/login', (req: Request, res: Response) => {
   const db = getDb();
 
   const demoClinicianPassword = process.env.DEMO_CLINICIAN_PASSWORD;
-  if (email === 'm.vance@sutterhealth.org' && demoClinicianPassword) {
+  if (!usesSupabase() && email === 'm.vance@sutterhealth.org' && demoClinicianPassword) {
     if (!isDemoClinicianEnabled()) return res.status(401).json({ error: 'Email or password is incorrect.' });
     const supplied = Buffer.from(password);
     const expected = Buffer.from(demoClinicianPassword);
@@ -1038,6 +1041,11 @@ app.get('/api/audit', (req: Request, res: Response) => {
 });
 
 // ======================== SERVER & VITE INTEGRATION ========================
+app.use('/api', (_req: Request, res: Response) => res.status(404).json({ error: 'API endpoint not found.' }));
+app.use((error: any, _req: Request, res: Response, _next: any) => {
+  if (res.headersSent) return;
+  res.status(error?.type === 'entity.parse.failed' ? 400 : 500).json({ error: error?.type === 'entity.parse.failed' ? 'The request body must be valid JSON.' : 'The request could not be completed. Please try again.' });
+});
 
 // The development server serves the app from the project root. Keep the
 // persisted JSON database out of Vite's static file handling.

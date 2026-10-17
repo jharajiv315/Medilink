@@ -11,6 +11,7 @@ import type {
   UserSession
 } from '../types/medilink.ts';
 import { detectConflicts } from '../utils/discrepancyEngine.ts';
+import { requestStore, usesSupabase } from './requestStore.ts';
 
 export interface MediLinkDatabase {
   users: UserSession[];
@@ -461,35 +462,46 @@ function persistDatabase(data: MediLinkDatabase): void {
   }
 }
 
-let db: MediLinkDatabase = loadPersistedDatabase();
+let db: MediLinkDatabase = usesSupabase() ? createInitialDatabase() : loadPersistedDatabase();
 
-export const getDb = (): MediLinkDatabase => db;
+export const getDb = (): MediLinkDatabase => {
+  const store = requestStore.getStore();
+  if (store) return store.data;
+  if (usesSupabase()) throw new Error('Database access requires a request transaction.');
+  return db;
+};
 
 export const saveDb = (): void => {
+  const store = requestStore.getStore();
+  if (store) { store.dirty = true; return; }
+  if (usesSupabase()) throw new Error('Database writes require a request transaction.');
   persistDatabase(db);
 };
 
 export const resetDb = (): MediLinkDatabase => {
+  const current = getDb();
   const initial = createInitialDatabase();
   const seededUserIds = new Set(initial.users.map(user => user.id));
   const seededPatientIds = new Set(initial.patients.map(patient => patient.id));
-  const registeredUsers = db.users.filter(user => !seededUserIds.has(user.id));
-  const registeredPatients = db.patients.filter(patient => !seededPatientIds.has(patient.id));
+  const registeredUsers = current.users.filter(user => !seededUserIds.has(user.id));
+  const registeredPatients = current.patients.filter(patient => !seededPatientIds.has(patient.id));
   const registeredPatientIds = new Set(registeredPatients.map(patient => patient.id));
-  db = {
+  const updated = {
     ...initial,
     users: [...initial.users, ...registeredUsers],
     patients: [...initial.patients, ...registeredPatients],
-    authCredentials: db.authCredentials ?? [],
-    authSessions: (db.authSessions ?? []).filter(session =>
+    authCredentials: current.authCredentials ?? [],
+    authSessions: (current.authSessions ?? []).filter(session =>
       seededUserIds.has(session.userId) || registeredUsers.some(user => user.id === session.userId)
     ),
-    documents: [...initial.documents, ...db.documents.filter(document => registeredPatientIds.has(document.patientId))],
-    facts: [...initial.facts, ...db.facts.filter(fact => registeredPatientIds.has(fact.patientId))],
-    conflicts: [...initial.conflicts, ...db.conflicts.filter(conflict => registeredPatientIds.has(conflict.patientId))],
-    grants: [...initial.grants, ...db.grants.filter(grant => registeredPatientIds.has(grant.patientId))],
-    auditLogs: [...initial.auditLogs, ...db.auditLogs.filter(event => event.patientId && registeredPatientIds.has(event.patientId))]
+    documents: [...initial.documents, ...current.documents.filter(document => registeredPatientIds.has(document.patientId))],
+    facts: [...initial.facts, ...current.facts.filter(fact => registeredPatientIds.has(fact.patientId))],
+    conflicts: [...initial.conflicts, ...current.conflicts.filter(conflict => registeredPatientIds.has(conflict.patientId))],
+    grants: [...initial.grants, ...current.grants.filter(grant => registeredPatientIds.has(grant.patientId))],
+    auditLogs: [...initial.auditLogs, ...current.auditLogs.filter(event => event.patientId && registeredPatientIds.has(event.patientId))]
   };
-  persistDatabase(db);
-  return db;
+  const store = requestStore.getStore();
+  if (store) { store.data = updated; store.dirty = true; }
+  else { db = updated; saveDb(); }
+  return updated;
 };
