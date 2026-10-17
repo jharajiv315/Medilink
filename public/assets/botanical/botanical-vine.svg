@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 400" fill="none">
+  <!-- Central climbing vine stem -->
+  <path d="M40 390 Q 36 300 42 210 T 38 100 T 40 20" stroke="#33650E" stroke-width="4.5" stroke-linecap="round"/>
+  <!-- Top sprout leaves -->
+  <path d="M40 25 C 25 15 15 -5 32 -15 C 45 -5 45 15 40 25 Z" fill="#78A541"/>
+  <path d="M40 25 C 55 15 65 -5 48 -15 C 35 -5 35 15 40 25 Z" fill="#88b349"/>
+  <!-- Leaf pair 1 -->
+  <path d="M38 105 C 18 95 10 75 22 60 C 35 70 40 90 38 105 Z" fill="#6F9140"/>
+  <!-- Leaf pair 2 -->
+  <path d="M42 200 C 62 190 70 170 58 155 C 45 165 40 185 42 200 Z" fill="#78A541"/>
+  <!-- Leaf pair 3 -->
+  <path d="M37 295 C 15 285 8 265 20 250 C 34 260 38 280 37 295 Z" fill="#579C91"/>
+</svg>

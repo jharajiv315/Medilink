@@ -15,6 +15,7 @@ import { ClinicDashboard } from './pages/ClinicDashboard.tsx';
 import { ClinicAccessRequest } from './pages/ClinicAccessRequest.tsx';
 import { ClinicHandoff } from './pages/ClinicHandoff.tsx';
 import { Unauthorized } from './pages/Unauthorized.tsx';
+import { PortalLayout } from './components/layout/PortalLayout.tsx';
 
 function AppContent() {
   const [currentPath, setCurrentPath] = useState<string>(() => {
@@ -134,6 +135,21 @@ function AppContent() {
     );
   };
 
+  const isMarketing = currentPath === '/' || currentPath === '/login' || currentPath === '/unauthorized';
+
+  if (!isMarketing && isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-[#F7FBF0] text-[#0B0808] font-['DM_Sans']">
+        <a href="#main-content" className="fixed left-4 top-4 z-[100] -translate-y-24 rounded-xl bg-white px-4 py-3 font-semibold text-[#33650E] shadow-lg focus:translate-y-0">Skip to content</a>
+        <PortalLayout currentPath={currentPath} onNavigate={navigate}>
+          <div id="main-content" tabIndex={-1} className="w-full">
+            {renderScreen()}
+          </div>
+        </PortalLayout>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-[#f7fbf0] text-[#181d16] font-['DM_Sans']">
       <a href="#main-content" className="fixed left-4 top-4 z-[100] -translate-y-24 rounded-xl bg-white px-4 py-3 font-semibold text-[#33650E] shadow-lg focus:translate-y-0">Skip to content</a>
@@ -141,7 +157,7 @@ function AppContent() {
       <main id="main-content" tabIndex={-1} className="flex-1 pt-20">
         {renderScreen()}
       </main>
-      <Footer onNavigate={navigate} />
+      {currentPath === '/' && <Footer onNavigate={navigate} />}
     </div>
   );
 }

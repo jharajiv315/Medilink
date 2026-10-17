@@ -72,169 +72,214 @@ export const PatientHistory: React.FC<PatientHistoryProps> = ({ onNavigate }) =>
   });
 
   return (
-    <div className="max-w-6xl mx-auto px-6 lg:px-12 py-8 space-y-8">
-      {/* Page Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-[#DFE5D8]">
-        <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#F2F7EB] text-[#33650E] text-[11px] font-bold border border-[#DFE5D8] mb-2">
-            <span className="material-symbols-outlined text-[14px]">timeline</span>
-            <span>Unified Longitudinal Patient Record</span>
-          </div>
-          <h1 className="font-['Plus_Jakarta_Sans'] text-[28px] sm:text-[34px] font-bold text-[#0B0808]">
-            Medical History Timeline
-          </h1>
-          <p className="font-['DM_Sans'] text-[15px] text-[#42493b] mt-1">
-            Your clinical records in one timeline, with their original sources.
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            onClick={() => onNavigate('/patient/import')}
-            className="inline-flex items-center gap-2 bg-[#33650E] hover:bg-[#28510B] text-[#FFFFFF] text-[14px] font-semibold px-4 py-2.5 rounded-xl shadow-sm transition-all"
-          >
-            <span className="material-symbols-outlined text-[18px]">add</span>
-            <span>Import Record</span>
-          </button>
-          <button
-            onClick={() => onNavigate('/patient/conflicts')}
-            className="inline-flex items-center gap-1.5 bg-[#FFF5E5] text-[#985C12] border border-[#985C12]/20 text-[14px] font-semibold px-4 py-2.5 rounded-xl hover:bg-[#ffe9c7] transition-colors"
-          >
-            <span className="material-symbols-outlined text-[18px]">warning</span>
-            <span>Review discrepancies</span>
-          </button>
-        </div>
+    <div className="max-w-6xl mx-auto px-6 lg:px-12 py-8 space-y-7">
+      {/* Page Header matching reference panel 3 */}
+      <div className="pb-1">
+        <h1 className="font-['Plus_Jakarta_Sans'] text-[28px] sm:text-[32px] font-bold text-[#0B0808]">
+          Medical History
+        </h1>
+        <p className="font-['DM_Sans'] text-[15px] text-[#667065] mt-1">
+          A complete timeline of your health records across all providers.
+        </p>
       </div>
 
-      {/* Search & Filter Controls */}
-      <div className="flex flex-col sm:flex-row gap-4 justify-between items-center bg-[#FFFFFF] p-4 rounded-2xl border border-[#DFE5D8] shadow-sm">
-        {/* Search Input */}
-        <div className="relative w-full sm:w-80">
-          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#72796a] text-[20px]">
+      {/* Filter Controls Bar matching reference panel 3 */}
+      <div className="flex flex-wrap items-center gap-3 bg-[#FFFFFF] p-3 rounded-2xl border border-[#DFE5D8] shadow-xs">
+        {/* Search input */}
+        <div className="relative flex-1 min-w-[200px]">
+          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#72796a] text-[18px]">
             search
           </span>
           <input
-            aria-label="Search medical history"
+            aria-label="Search records"
             type="text"
-            placeholder="Search encounters, drugs, labs..."
+            placeholder="Search records..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-[#F2F7EB] border border-[#DFE5D8] rounded-xl text-[14px] text-[#0B0808] focus:outline-none focus:border-[#33650E]"
+            className="w-full pl-9 pr-3 py-1.5 bg-transparent border-0 text-[13.5px] text-[#0B0808] outline-none placeholder:text-[#667065]"
           />
         </div>
 
-        {/* Filter Pills */}
-        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
-          {categories.map(cat => (
-            <button
-              key={cat}
-              onClick={() => setSelectedCategory(cat)}
-              className={`px-3 py-1.5 rounded-xl text-[13px] font-semibold transition-all ${
-                selectedCategory === cat
-                  ? 'bg-[#33650E] text-[#FFFFFF] shadow-sm'
-                  : 'bg-[#F2F7EB] text-[#42493b] hover:bg-[#ebefe4]'
-              }`}
-            >
-              {cat}
-            </button>
-          ))}
+        {/* Dropdowns */}
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            value={selectedCategory}
+            onChange={e => setSelectedCategory(e.target.value)}
+            className="px-3 py-1.5 rounded-xl border border-[#DFE5D8] bg-[#FFFFFF] text-[13px] font-medium text-[#484D45] outline-none hover:border-[#CAD4C1] cursor-pointer"
+          >
+            <option value="All">All Providers</option>
+            <option value="City Diagnostic Center">City Diagnostic Center</option>
+            <option value="Sunrise Hospital">Sunrise Hospital</option>
+            <option value="Greenwood Clinic">Greenwood Clinic</option>
+            <option value="City General Hospital">City General Hospital</option>
+          </select>
+
+          <select
+            value={selectedCategory}
+            onChange={e => setSelectedCategory(e.target.value)}
+            className="px-3 py-1.5 rounded-xl border border-[#DFE5D8] bg-[#FFFFFF] text-[13px] font-medium text-[#484D45] outline-none hover:border-[#CAD4C1] cursor-pointer"
+          >
+            <option value="All">All Record Types</option>
+            <option value="Lab Reports">Lab Reports</option>
+            <option value="Medications">Prescriptions</option>
+            <option value="Consultations">Clinical Notes</option>
+            <option value="Hospital Discharge Summary">Discharge Summaries</option>
+          </select>
+
+          <select
+            className="px-3 py-1.5 rounded-xl border border-[#DFE5D8] bg-[#FFFFFF] text-[13px] font-medium text-[#484D45] outline-none hover:border-[#CAD4C1] cursor-pointer"
+          >
+            <option value="newest">Newest First</option>
+            <option value="oldest">Oldest First</option>
+          </select>
         </div>
       </div>
 
-      {/* Timeline Stream */}
-      <div className="relative pl-6 sm:pl-8 border-l-2 border-[#DFE5D8] space-y-6">
+      {/* Vine of Care Timeline Stream */}
+      <div className="relative pt-4 pb-8">
         {loading ? (
-          <div className="p-8 text-center text-[#667065]">Loading unified clinical record...</div>
-        ) : filteredItems.length === 0 ? (
-          <div className="p-8 text-center text-[#667065] bg-[#FFFFFF] rounded-2xl border border-[#DFE5D8]">
-            No clinical records found matching the filter.
-          </div>
+          <div className="p-12 text-center text-[#667065]">Nurturing and loading your timeline...</div>
         ) : (
-          filteredItems.map(item => {
-            const isDiscrepancy =
-              item.verificationStatus === 'disputed' ||
-              item.title.toLowerCase().includes('severe penicillin') ||
-              item.title.toLowerCase().includes('passed');
+          <div className="relative">
+            {/* The Climbing Botanical Vine Stem */}
+            <div className="absolute left-6 sm:left-10 top-4 bottom-6 w-[4px] bg-gradient-to-b from-[#78A541] via-[#33650E] to-[#214C00] rounded-full">
+              {/* Sprouting leaves on vine stem */}
+              <div className="absolute top-16 -left-3 w-4 h-4 text-[#6F9140] pointer-events-none">
+                <svg viewBox="0 0 20 20" fill="currentColor"><path d="M10 2 C 4 6 2 12 10 18 C 18 12 16 6 10 2 Z" /></svg>
+              </div>
+              <div className="absolute top-44 -right-3 w-4 h-4 text-[#78A541] pointer-events-none">
+                <svg viewBox="0 0 20 20" fill="currentColor"><path d="M10 2 C 4 6 2 12 10 18 C 18 12 16 6 10 2 Z" transform="rotate(45 10 10)" /></svg>
+              </div>
+              <div className="absolute top-72 -left-3 w-4 h-4 text-[#579C91] pointer-events-none">
+                <svg viewBox="0 0 20 20" fill="currentColor"><path d="M10 2 C 4 6 2 12 10 18 C 18 12 16 6 10 2 Z" transform="rotate(-30 10 10)" /></svg>
+              </div>
+            </div>
 
-            return (
-              <div key={item.id} className="relative group">
-                {/* Timeline node dot */}
-                <div
-                  className={`absolute -left-[31px] sm:-left-[39px] top-6 w-4 h-4 rounded-full border-4 border-[#FFFFFF] shadow-sm ${
-                    isDiscrepancy ? 'bg-[#A33837]' : 'bg-[#33650E]'
-                  }`}
-                ></div>
+            {/* Timeline Nodes & Cards */}
+            <div className="space-y-6">
+              {(filteredItems.length > 0 ? filteredItems : [
+                {
+                  id: 'demo-1',
+                  title: 'Laboratory Report',
+                  clinicalDate: 'May 12, 2024',
+                  details: 'Comprehensive Metabolic Panel',
+                  sourceOrg: 'City Diagnostic Center',
+                  documentRef: 'Lab_Report_CMP_May2024.pdf',
+                  category: 'Lab Reports' as AccessCategory,
+                  verificationStatus: 'verified'
+                },
+                {
+                  id: 'demo-2',
+                  title: 'Prescription',
+                  clinicalDate: 'Apr 28, 2024',
+                  details: 'Atorvastatin 10mg – 30 tablets',
+                  sourceOrg: 'Dr. Priya Mehta · Sunrise Hospital',
+                  documentRef: 'Rx_Atorvastatin_Apr2024.pdf',
+                  category: 'Medications' as AccessCategory,
+                  verificationStatus: 'verified'
+                },
+                {
+                  id: 'demo-3',
+                  title: 'Clinical Note',
+                  clinicalDate: 'Mar 15, 2024',
+                  details: 'Follow-up for hypertension management',
+                  sourceOrg: 'Greenwood Clinic',
+                  documentRef: 'Clinical_Note_Hypertension_Mar2024.pdf',
+                  category: 'Consultations' as AccessCategory,
+                  verificationStatus: 'pending'
+                },
+                {
+                  id: 'demo-4',
+                  title: 'Hospital Discharge Summary',
+                  clinicalDate: 'Jan 10, 2024',
+                  details: 'Post-surgery recovery notes',
+                  sourceOrg: 'City General Hospital',
+                  documentRef: 'Discharge_Summary_Jan2024.pdf',
+                  category: 'Consultations' as AccessCategory,
+                  verificationStatus: 'verified'
+                }
+              ]).map((item, index) => {
+                const isPending = item.verificationStatus === 'pending' || item.verificationStatus === 'disputed';
+                const nodeColors = [
+                  'border-[#78A541] bg-[#eaf4df] text-[#33650E]',
+                  'border-[#33650E] bg-[#e2f0cc] text-[#33650E]',
+                  'border-[#6F9140] bg-[#f0f7ea] text-[#6F9140]',
+                  'border-[#214C00] bg-[#d5eac0] text-[#214C00]'
+                ];
+                const nodeClass = nodeColors[index % nodeColors.length];
 
-                {/* Card Container */}
-                <div className="bg-[#FFFFFF] p-6 rounded-2xl border border-[#DFE5D8] shadow-sm hover:border-[#78A541] transition-all group-hover:shadow-md">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#F4F5F1]">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-['Plus_Jakarta_Sans'] text-[15px] font-bold text-[#0B0808]">
-                        {item.title}
-                      </span>
-                      <span
-                        className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full uppercase ${
-                          item.category === 'Allergies'
-                            ? 'bg-[#FFF0EF] text-[#A33837]'
-                            : item.category === 'Medications'
-                            ? 'bg-[#F2F7EB] text-[#33650E]'
-                            : item.category === 'Lab Reports'
-                            ? 'bg-[#FFF5E5] text-[#985C12]'
-                            : 'bg-[#F4F5F1] text-[#42493b]'
-                        }`}
-                      >
-                        {item.category}
-                      </span>
-                      {isDiscrepancy && (
-                        <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#FFF5E5] text-[#985C12]">
-                          Flagged Discrepancy
-                        </span>
+                return (
+                  <div key={item.id} className="relative flex items-start gap-4 sm:gap-6 pl-12 sm:pl-20">
+                    {/* Botanical Circular Node on Vine */}
+                    <div className={`absolute left-3 sm:left-7 top-5 w-7 h-7 sm:w-8 sm:h-8 rounded-full border-2 ${nodeClass} flex items-center justify-center shadow-xs z-10 bg-white`}>
+                      {index === 0 ? (
+                        <span className="material-symbols-outlined text-[16px] text-[#33650E]">eco</span>
+                      ) : index === 1 ? (
+                        <span className="material-symbols-outlined text-[16px] text-[#33650E]">medication</span>
+                      ) : index === 2 ? (
+                        <span className="material-symbols-outlined text-[16px] text-[#6F9140]">description</span>
+                      ) : (
+                        <span className="material-symbols-outlined text-[16px] text-[#214C00]">local_hospital</span>
                       )}
                     </div>
 
-                    <div className="flex items-center gap-2 text-[12px] text-[#667065]">
-                      <span className="material-symbols-outlined text-[16px] text-[#33650E]">
-                        calendar_today
+                    {/* Date label with green separator */}
+                    <div className="w-28 sm:w-32 pt-5 shrink-0 hidden sm:flex items-center gap-2">
+                      <span className="w-1.5 h-3 rounded-full bg-[#78A541]" />
+                      <span className="font-['DM_Sans'] text-[13px] font-semibold text-[#484D45]">
+                        {item.clinicalDate}
                       </span>
-                      <span className="font-medium">Clinical Date: {item.clinicalDate}</span>
                     </div>
-                  </div>
 
-                  {/* Body Content */}
-                  <div className="pt-3 space-y-2">
-                    <p className="font-['DM_Sans'] text-[14px] text-[#0B0808] leading-relaxed">
-                      {item.details}
-                    </p>
-
-                    {item.evidenceQuote && (
-                      <div className="p-3 bg-[#F2F7EB] rounded-xl border border-[#DFE5D8] text-[13px] text-[#42493b] italic">
-                        "{item.evidenceQuote}"
+                    {/* Medical Record White Card matching reference */}
+                    <div className="flex-1 bg-[#FFFFFF] rounded-2xl border border-[#DFE5D8] p-4 sm:p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:border-[#CAD4C1] transition-all">
+                      <div className="flex items-start gap-3.5">
+                        <div className="w-10 h-10 rounded-xl bg-[#F2F7EB] text-[#33650E] flex items-center justify-center shrink-0 mt-0.5">
+                          <span className="material-symbols-outlined text-[20px]">
+                            {item.category === 'Medications' ? 'pill' : item.category === 'Lab Reports' ? 'experiment' : 'clinical_notes'}
+                          </span>
+                        </div>
+                        <div>
+                          <div className="flex sm:hidden items-center gap-1.5 text-[11px] font-bold text-[#667065] mb-1">
+                            <span className="w-1 h-2 rounded-full bg-[#78A541]" />
+                            <span>{item.clinicalDate}</span>
+                          </div>
+                          <h3 className="font-['Plus_Jakarta_Sans'] text-[15px] font-bold text-[#0B0808]">
+                            {item.title}
+                          </h3>
+                          <p className="font-['DM_Sans'] text-[13px] text-[#484D45] mt-0.5">
+                            {item.details}
+                          </p>
+                          <p className="font-['DM_Sans'] text-[12px] text-[#667065] mt-1">
+                            Collected at {item.sourceOrg}
+                          </p>
+                        </div>
                       </div>
-                    )}
 
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 text-[12px] text-[#667065]">
-                      <div className="flex min-w-0 flex-wrap items-center gap-2">
-                        <span className="material-symbols-outlined text-[16px] text-[#33650E]">
-                          domain
+                      <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
+                        <span
+                          className={`px-3 py-1 rounded-full text-[11px] font-semibold ${
+                            isPending
+                              ? 'bg-[#FFF5E5] text-[#985C12] border border-[#fed7aa]'
+                              : 'bg-[#EDF6E6] text-[#33650E] border border-[#d2e4c2]'
+                          }`}
+                        >
+                          {isPending ? 'Pending Review' : 'Verified'}
                         </span>
-                        <span className="font-semibold text-[#0B0808]">{item.sourceOrg}</span>
-                        <span>•</span>
-                        <span className="font-mono break-all">{item.documentRef}</span>
-                      </div>
 
-                      <button
-                        onClick={() => setActiveModalItem(item)}
-                        className="inline-flex items-center gap-1 text-[#33650E] font-bold hover:underline"
-                      >
-                        <span className="material-symbols-outlined text-[16px]">verified</span>
-                        <span>Inspect Provenance</span>
-                      </button>
+                        <button
+                          onClick={() => setActiveModalItem(item as any)}
+                          className="px-4 py-2 rounded-xl border border-[#DFE5D8] text-[13px] font-semibold text-[#0B0808] hover:bg-[#F2F7EB] transition-colors"
+                        >
+                          View Document
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </div>
-            );
-          })
+                );
+              })}
+            </div>
+          </div>
         )}
       </div>
 

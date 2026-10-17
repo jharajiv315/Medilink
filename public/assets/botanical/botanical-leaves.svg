@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 300" fill="none">
+  <!-- Organic botanical branch with soft lush leaves -->
+  <path d="M40 280 Q 90 200 120 120 T 150 20" stroke="#4a7c1b" stroke-width="4" stroke-linecap="round"/>
+  <!-- Leaf 1 Left -->
+  <path d="M60 240 C 20 230 10 200 25 180 C 45 190 65 215 65 235 Z" fill="#6F9140" opacity="0.9"/>
+  <path d="M60 240 Q 35 205 25 180" stroke="#33650E" stroke-width="1.5"/>
+  <!-- Leaf 2 Right -->
+  <path d="M85 210 C 130 195 150 170 145 150 C 120 155 95 185 88 205 Z" fill="#78A541" opacity="0.95"/>
+  <path d="M85 210 Q 120 180 145 150" stroke="#33650E" stroke-width="1.5"/>
+  <!-- Leaf 3 Left -->
+  <path d="M100 160 C 55 140 45 110 60 90 C 85 105 105 130 105 155 Z" fill="#6F9140" opacity="0.9"/>
+  <path d="M100 160 Q 75 125 60 90" stroke="#33650E" stroke-width="1.5"/>
+  <!-- Leaf 4 Right -->
+  <path d="M120 125 C 165 105 180 75 170 55 C 145 65 125 95 122 120 Z" fill="#88b349" opacity="0.95"/>
+  <path d="M120 125 Q 150 90 170 55" stroke="#4a7c1b" stroke-width="1.5"/>
+  <!-- Leaf 5 Tip -->
+  <path d="M140 50 C 145 15 160 5 165 0 C 168 15 160 40 145 55 Z" fill="#9ec956" opacity="0.95"/>
+  <path d="M140 50 Q 155 25 165 0" stroke="#4a7c1b" stroke-width="1.5"/>
+</svg>

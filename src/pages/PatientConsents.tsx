@@ -13,7 +13,7 @@ export const PatientConsents: React.FC<PatientConsentsProps> = ({ onNavigate }) 
   const patientId = currentUser.patientId!;
 
   const [grants, setGrants] = useState<AccessGrant[]>([]);
-  const [activeTab, setActiveTab] = useState<'active' | 'pending' | 'expired' | 'revoked'>('active');
+  const [activeTab, setActiveTab] = useState<'pending' | 'active' | 'expired' | 'revoked'>('pending');
   const [loading, setLoading] = useState(true);
   const [modalGrant, setModalGrant] = useState<AccessGrant | null>(null);
   const [selectedCategories, setSelectedCategories] = useState<AccessCategory[]>([]);
@@ -133,54 +133,39 @@ export const PatientConsents: React.FC<PatientConsentsProps> = ({ onNavigate }) 
   return (
     <div className="max-w-6xl mx-auto px-6 lg:px-12 py-8 space-y-8">
       {error && !modalGrant && !revokingGrantId && <div role="alert" className="rounded-2xl border border-[#A33837]/20 bg-[#FFF0EF] p-4 text-sm text-[#A33837]">{error} <button onClick={loadGrants} className="ml-2 font-semibold underline">Reload</button></div>}
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-[#DFE5D8]">
-        <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#F2F7EB] text-[#33650E] text-[11px] font-bold border border-[#DFE5D8] mb-2">
-            <span className="material-symbols-outlined text-[14px]">lock_person</span>
-            <span>Zero-Knowledge Access Control</span>
-          </div>
-          <h1 className="font-['Plus_Jakarta_Sans'] text-[28px] sm:text-[34px] font-bold text-[#0B0808]">
-            Patient-Controlled Sharing &amp; Consent
-          </h1>
-          <p className="font-['DM_Sans'] text-[15px] text-[#42493b] mt-1">
-            Authorize specialists with category-gated, time-bound tokens. Revoke access instantly
-            with zero delay.
-          </p>
-        </div>
-
-        <button
-          onClick={loadGrants}
-          className="inline-flex items-center gap-2 bg-[#F2F7EB] hover:bg-[#ebefe4] text-[#33650E] border border-[#DFE5D8] text-[14px] font-semibold px-4 py-2.5 rounded-xl transition-all"
-        >
-          <span className="material-symbols-outlined text-[18px]">add_link</span>
-          <span>Refresh requests</span>
-        </button>
+      {/* Header matching reference panel 5 */}
+      <div className="pb-1">
+        <h1 className="font-['Plus_Jakarta_Sans'] text-[28px] sm:text-[32px] font-bold text-[#0B0808]">
+          Manage Access to Your Records
+        </h1>
+        <p className="font-['DM_Sans'] text-[15px] text-[#667065] mt-1">
+          You control who can view your medical information.
+        </p>
       </div>
 
-      {/* Tabs */}
-      <div className="flex border-b border-[#DFE5D8] gap-4 sm:gap-8 overflow-x-auto">
-        {(['active', 'pending', 'expired', 'revoked'] as const).map(tab => {
-          const count = grants.filter(g => ((g as any).effectiveStatus || g.status) === tab).length;
+      {/* Filter Tabs matching reference panel 5 */}
+      <div className="flex flex-wrap items-center gap-2">
+        {[
+          { id: 'pending', label: 'Pending Requests' },
+          { id: 'active', label: 'Active Access' },
+          { id: 'expired', label: 'Expired' },
+          { id: 'revoked', label: 'Revoked' },
+        ].map(tab => {
+          const count = grants.filter(g => ((g as any).effectiveStatus || g.status) === tab.id).length;
+          const isActive = activeTab === tab.id;
           return (
             <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`pb-3 font-['DM_Sans'] text-[14px] font-semibold capitalize transition-all border-b-2 flex items-center gap-2 ${
-                activeTab === tab
-                  ? 'border-[#33650E] text-[#33650E]'
-                  : 'border-transparent text-[#667065] hover:text-[#0B0808]'
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
+              className={`px-4 py-1.5 rounded-full text-[13px] font-medium transition-colors flex items-center gap-1.5 ${
+                isActive
+                  ? 'bg-[#285208] text-[#FFFFFF] font-semibold shadow-xs'
+                  : 'bg-[#FFFFFF] text-[#484D45] border border-[#DFE5D8] hover:bg-[#F2F7EB]'
               }`}
             >
-              <span>{tab} Grants</span>
-              <span
-                className={`text-[11px] px-2 py-0.5 rounded-full ${
-                  activeTab === tab
-                    ? 'bg-[#33650E] text-[#FFFFFF]'
-                    : 'bg-[#F2F7EB] text-[#42493b]'
-                }`}
-              >
-                {count}
+              <span>{tab.label}</span>
+              <span className={`text-[11.5px] px-1.5 py-0.2 rounded-full ${isActive ? 'bg-white/25 text-white' : 'bg-[#F2F7EB] text-[#484D45]'}`}>
+                ({count})
               </span>
             </button>
           );
@@ -207,66 +192,152 @@ export const PatientConsents: React.FC<PatientConsentsProps> = ({ onNavigate }) 
           filteredGrants.map(grant => {
             const isPending = grant.status === 'pending';
             const isActive = ((grant as any).effectiveStatus || grant.status) === 'active';
-            const isRevoked = grant.status === 'revoked';
 
-            return (
-              <div
-                key={grant.id}
-                className="bg-[#FFFFFF] rounded-2xl border border-[#DFE5D8] p-6 shadow-sm hover:border-[#78A541] transition-all space-y-4"
-              >
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#F4F5F1]">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-['Plus_Jakarta_Sans'] text-[16px] font-bold text-[#0B0808]">
-                        {grant.requesterName}
-                      </h3>
-                      <span className="text-[12px] text-[#667065] font-medium">
-                        • {grant.requesterTitle}
-                      </span>
+            if (isPending) {
+              return (
+                <div
+                  key={grant.id}
+                  className="bg-[#FFFFFF] rounded-2xl border border-[#DFE5D8] p-6 shadow-xs hover:border-[#78A541] transition-all space-y-4"
+                >
+                  <div className="flex items-start justify-between gap-4 pb-4 border-b border-[#F0F4EA]">
+                    <div className="flex items-center gap-3.5">
+                      <div className="w-11 h-11 rounded-full bg-[#EDF6E6] text-[#33650E] flex items-center justify-center font-bold shrink-0">
+                        <span className="material-symbols-outlined text-[22px]">medical_services</span>
+                      </div>
+                      <div>
+                        <h3 className="font-['Plus_Jakarta_Sans'] text-[16px] font-bold text-[#0B0808]">
+                          {grant.requesterName}
+                        </h3>
+                        <p className="text-[12.5px] text-[#667065] font-medium">
+                          {grant.requestingOrgName}
+                        </p>
+                      </div>
                     </div>
-                    <p className="text-[13px] text-[#33650E] font-semibold mt-0.5">
-                      {grant.requestingOrgName}
-                    </p>
+                    <span className="px-3 py-1 rounded-full text-[11.5px] font-semibold bg-[#FFF5E5] text-[#985C12] border border-[#F5E5C9] shrink-0">
+                      Pending Approval
+                    </span>
                   </div>
 
-                  <span
-                    className={`px-3 py-1 rounded-full text-[11px] font-bold uppercase w-fit ${
-                      isActive
-                        ? 'bg-[#F2F7EB] text-[#33650E]'
-                        : isPending
-                        ? 'bg-[#FFF5E5] text-[#985C12]'
-                        : 'bg-[#FFF0EF] text-[#A33837]'
-                    }`}
-                  >
-                    {isActive
-                      ? `Active (${grant.accessDurationDays}d token)`
-                      : isPending
-                      ? 'Action Required: Pending Approval'
-                      : grant.status}
-                  </span>
-                </div>
-
-                {/* Details */}
-                <div className="space-y-2 text-[13px]">
-                  <p className="text-[#42493b]">
-                    <strong>Clinical Purpose:</strong> {grant.purpose}
-                  </p>
-
-                  <div>
-                    <strong className="text-[#0B0808] block mb-1">Permitted Categories:</strong>
-                    <div className="flex flex-wrap gap-1.5">
-                      {(isPending ? grant.requestedCategories : grant.approvedCategories).map(cat => (
+                  <div className="space-y-2 text-[13px] font-['DM_Sans']">
+                    <div>
+                      <span className="text-[#667065]">Purpose: </span>
+                      <span className="font-medium text-[#0B0808]">{grant.purpose}</span>
+                    </div>
+                    <div>
+                      <span className="text-[#667065]">Duration: </span>
+                      <span className="font-medium text-[#0B0808]">
+                        {grant.accessDurationDays ? `${grant.accessDurationDays >= 60 ? Math.round(grant.accessDurationDays / 30) + ' months' : grant.accessDurationDays + ' days'}` : '3 months'}
+                      </span>
+                    </div>
+                    <div className="pt-1 flex flex-wrap items-center gap-2">
+                      <span className="text-[#667065] mr-1">Categories:</span>
+                      {grant.requestedCategories.map(cat => (
                         <span
                           key={cat}
-                          className="px-2.5 py-1 rounded-lg bg-[#F2F7EB] text-[#33650E] text-[12px] font-semibold border border-[#DFE5D8]"
+                          className="px-3 py-0.5 rounded-full bg-[#F2F7EB] text-[#33650E] text-[12px] font-semibold border border-[#DFE5D8]"
                         >
-                          {cat}
+                          {cat === 'Consultations' ? 'Clinical Notes' : cat}
                         </span>
                       ))}
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-4 pt-2 text-[12px] text-[#667065]">
+                  <div className="pt-4 border-t border-[#F0F4EA] flex flex-wrap items-center justify-between gap-3">
+                    <button
+                      onClick={() => {
+                        setModalGrant(grant);
+                        setSelectedCategories(grant.requestedCategories);
+                        setDurationDays(grant.accessDurationDays || 30);
+                        setDurationMinutes(null);
+                        setError('');
+                      }}
+                      className="px-4 py-2 rounded-xl border border-[#DFE5D8] bg-[#FFFFFF] hover:bg-[#F2F7EB] text-[13px] font-medium text-[#484D45] transition-colors"
+                    >
+                      View Details
+                    </button>
+                    <div className="flex items-center gap-2.5">
+                      <button
+                        onClick={() => handleRevoke(grant.id)}
+                        className="px-4 py-2 rounded-xl border border-[#FED7D7] bg-[#FFF0EF] hover:bg-[#FFE3E0] text-[13px] font-semibold text-[#A33837] transition-colors"
+                      >
+                        Deny
+                      </button>
+                      <button
+                        onClick={() => {
+                          setModalGrant(grant);
+                          setSelectedCategories(grant.requestedCategories);
+                          setDurationDays(grant.accessDurationDays || 30);
+                          setDurationMinutes(null);
+                          setError('');
+                        }}
+                        className="px-5 py-2 rounded-xl bg-[#285208] hover:bg-[#1e4604] text-[13px] font-semibold text-[#FFFFFF] shadow-xs transition-colors"
+                      >
+                        Approve
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+
+            return (
+              <div
+                key={grant.id}
+                className="bg-[#FFFFFF] rounded-2xl border border-[#DFE5D8] p-6 shadow-xs hover:border-[#78A541] transition-all space-y-4"
+              >
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#F0F4EA]">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-[#EDF6E6] text-[#33650E] flex items-center justify-center font-bold shrink-0">
+                      <span className="material-symbols-outlined text-[20px]">medical_services</span>
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-['Plus_Jakarta_Sans'] text-[16px] font-bold text-[#0B0808]">
+                          {grant.requesterName}
+                        </h3>
+                        <span className="text-[12px] text-[#667065] font-medium">
+                          • {grant.requesterTitle}
+                        </span>
+                      </div>
+                      <p className="text-[12.5px] text-[#33650E] font-semibold mt-0.5">
+                        {grant.requestingOrgName}
+                      </p>
+                    </div>
+                  </div>
+
+                  <span
+                    className={`px-3 py-1 rounded-full text-[11.5px] font-semibold uppercase w-fit ${
+                      isActive
+                        ? 'bg-[#EDF6E6] text-[#33650E] border border-[#D2E4C2]'
+                        : 'bg-[#FFF0EF] text-[#A33837] border border-[#FED7D7]'
+                    }`}
+                  >
+                    {isActive
+                      ? `Active (${grant.accessDurationDays}d token)`
+                      : grant.status}
+                  </span>
+                </div>
+
+                {/* Details */}
+                <div className="space-y-2 text-[13px] font-['DM_Sans']">
+                  <p className="text-[#42493b]">
+                    <span className="text-[#667065]">Purpose: </span>
+                    <span className="font-medium text-[#0B0808]">{grant.purpose}</span>
+                  </p>
+
+                  <div className="pt-1 flex flex-wrap items-center gap-1.5">
+                    <span className="text-[#667065] mr-1">Permitted:</span>
+                    {(isPending ? grant.requestedCategories : grant.approvedCategories).map(cat => (
+                      <span
+                        key={cat}
+                        className="px-2.5 py-0.5 rounded-full bg-[#F2F7EB] text-[#33650E] text-[12px] font-semibold border border-[#DFE5D8]"
+                      >
+                        {cat === 'Consultations' ? 'Clinical Notes' : cat}
+                      </span>
+                    ))}
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-4 pt-1 text-[12px] text-[#667065]">
                     <span>Requested: {grant.requestedAt.split('T')[0]}</span>
                     {grant.expiresAt && (
                       <span className="text-[#33650E] font-semibold">
@@ -282,44 +353,29 @@ export const PatientConsents: React.FC<PatientConsentsProps> = ({ onNavigate }) 
                 </div>
 
                 {/* Action buttons */}
-                <div className="pt-3 border-t border-[#DFE5D8] flex flex-wrap items-center justify-between gap-3">
+                <div className="pt-3 border-t border-[#F0F4EA] flex flex-wrap items-center justify-between gap-3">
                   <div className="flex items-center gap-1.5 text-[11px] text-[#667065]">
                     <span className="material-symbols-outlined text-[14px] text-[#33650E]">
                       key
                     </span>
-                    <span className="font-mono">Token ID: {grant.id}</span>
+                    <span className="font-mono">Token: {grant.id}</span>
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2">
-                    {isPending && (
-                      <button
-                        onClick={() => {
-                          setModalGrant(grant);
-                          setSelectedCategories(grant.requestedCategories);
-                          setDurationDays(grant.accessDurationDays || 30);
-                          setDurationMinutes(null);
-                          setError('');
-                        }}
-                        className="bg-[#33650E] hover:bg-[#28510B] text-[#FFFFFF] text-[13px] font-semibold px-4 py-2 rounded-xl transition-all shadow-sm"
-                      >
-                        Review &amp; Approve
-                      </button>
-                    )}
-
                     {isActive && (
                       <>
                         <button
                           onClick={() => setQrGrant(grant)}
-                          className="inline-flex items-center gap-1.5 bg-[#33650E] hover:bg-[#28510B] text-[#FFFFFF] text-[13px] font-semibold px-3.5 py-2 rounded-xl transition-all shadow-sm"
+                          className="inline-flex items-center gap-1.5 bg-[#285208] hover:bg-[#1e4604] text-[#FFFFFF] text-[13px] font-semibold px-4 py-2 rounded-xl transition-all shadow-xs"
                         >
                           <span className="material-symbols-outlined text-[16px]">qr_code_2</span>
                           <span>Show QR Code</span>
                         </button>
                         <button
                           onClick={() => setRevokingGrantId(grant.id)}
-                          className="bg-[#FFF0EF] hover:bg-[#ffe3e0] text-[#A33837] border border-[#ffdad6] text-[13px] font-semibold px-3.5 py-2 rounded-xl transition-colors"
+                          className="bg-[#FFF0EF] hover:bg-[#FFE3E0] text-[#A33837] border border-[#FED7D7] text-[13px] font-semibold px-4 py-2 rounded-xl transition-colors"
                         >
-                          Revoke Access Immediately
+                          Revoke Access
                         </button>
                       </>
                     )}

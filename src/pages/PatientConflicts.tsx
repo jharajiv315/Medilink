@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext.tsx';
 import type { DiscrepancyConflict } from '../types/medilink.ts';
+import { BotanicalBackground } from '../components/botanical/BotanicalBackground.tsx';
 
 interface PatientConflictsProps {
   onNavigate: (path: string) => void;
@@ -66,272 +67,236 @@ export const PatientConflicts: React.FC<PatientConflictsProps> = ({ onNavigate }
     }
   };
 
+  const [selectedFilter, setSelectedFilter] = useState<'All' | 'Allergies' | 'Medications' | 'Conditions'>('All');
+  const [showNoteInput, setShowNoteInput] = useState(false);
+
   return (
-    <div className="max-w-6xl mx-auto px-6 lg:px-12 py-8 space-y-8">
+    <div className="relative max-w-7xl mx-auto px-6 lg:px-12 py-8 space-y-7">
+      {/* Background botanical corner accent */}
+      <BotanicalBackground position="bottom-left" />
+
       {error && <div role="alert" className="rounded-2xl border border-[#A33837]/20 bg-[#FFF0EF] p-4 text-sm text-[#A33837]">{error} <button onClick={loadConflicts} className="ml-2 font-bold underline">Reload</button></div>}
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-[#DFE5D8]">
-        <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FFF5E5] text-[#985C12] text-[11px] font-bold border border-[#985C12]/20 mb-2">
-            <span className="material-symbols-outlined text-[14px]">warning</span>
-            <span>Evidence-Linked Discrepancy Engine</span>
-          </div>
-          <h1 className="font-['Plus_Jakarta_Sans'] text-[28px] sm:text-[34px] font-bold text-[#0B0808]">
-            Clinical Documentation Discrepancies
-          </h1>
-          <p className="font-['DM_Sans'] text-[15px] text-[#42493b] mt-1">
-            Automated cross-encounter analysis highlighting clinical contradictions with source-level
-            citations.
-          </p>
+      
+      {/* Page Header matching reference panel 4 */}
+      <div className="pb-1">
+        <h1 className="font-['Plus_Jakarta_Sans'] text-[28px] sm:text-[32px] font-bold text-[#0B0808]">
+          Record Discrepancies
+        </h1>
+        <p className="font-['DM_Sans'] text-[15px] text-[#667065] mt-1">
+          We've found information that may need clinical review.
+        </p>
+      </div>
+
+      {/* Filter Tabs matching reference panel 4 */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => setSelectedFilter('All')}
+            className={`px-4 py-1.5 rounded-full text-[13px] font-medium transition-colors ${
+              selectedFilter === 'All'
+                ? 'bg-[#285208] text-[#FFFFFF] font-semibold shadow-xs'
+                : 'bg-[#FFFFFF] text-[#484D45] border border-[#DFE5D8] hover:bg-[#F2F7EB]'
+            }`}
+          >
+            All (3)
+          </button>
+          <button
+            onClick={() => setSelectedFilter('Allergies')}
+            className={`px-4 py-1.5 rounded-full text-[13px] font-medium transition-colors ${
+              selectedFilter === 'Allergies'
+                ? 'bg-[#285208] text-[#FFFFFF] font-semibold shadow-xs'
+                : 'bg-[#FFFFFF] text-[#484D45] border border-[#DFE5D8] hover:bg-[#F2F7EB]'
+            }`}
+          >
+            Allergies (1)
+          </button>
+          <button
+            onClick={() => setSelectedFilter('Medications')}
+            className={`px-4 py-1.5 rounded-full text-[13px] font-medium transition-colors ${
+              selectedFilter === 'Medications'
+                ? 'bg-[#285208] text-[#FFFFFF] font-semibold shadow-xs'
+                : 'bg-[#FFFFFF] text-[#484D45] border border-[#DFE5D8] hover:bg-[#F2F7EB]'
+            }`}
+          >
+            Medications (1)
+          </button>
+          <button
+            onClick={() => setSelectedFilter('Conditions')}
+            className={`px-4 py-1.5 rounded-full text-[13px] font-medium transition-colors ${
+              selectedFilter === 'Conditions'
+                ? 'bg-[#285208] text-[#FFFFFF] font-semibold shadow-xs'
+                : 'bg-[#FFFFFF] text-[#484D45] border border-[#DFE5D8] hover:bg-[#F2F7EB]'
+            }`}
+          >
+            Conditions (1)
+          </button>
         </div>
 
         <button
-          onClick={() => onNavigate('/patient/consents')}
-          className="inline-flex items-center gap-2 bg-[#33650E] hover:bg-[#28510B] text-[#FFFFFF] text-[14px] font-semibold px-4 py-2.5 rounded-xl shadow-sm transition-all"
+          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-[#DFE5D8] bg-[#FFFFFF] text-[13px] font-medium text-[#484D45] hover:bg-[#F2F7EB] shadow-2xs"
         >
-          <span className="material-symbols-outlined text-[18px]">medical_services</span>
-          <span>Manage sharing</span>
+          <span className="material-symbols-outlined text-[16px]">filter_list</span>
+          <span>Filter</span>
         </button>
       </div>
 
       {loading ? (
-        <div className="p-8 text-center text-[#667065]">Analyzing clinical records for conflicts...</div>
-      ) : error ? null : conflicts.length === 0 ? (
-        <div className="p-10 text-center bg-[#FFFFFF] rounded-2xl border border-[#DFE5D8]">
-          <span className="material-symbols-outlined text-[#33650E] text-[40px] mb-2">
-            check_circle
-          </span>
-          <h3 className="font-['Plus_Jakarta_Sans'] text-[18px] font-bold text-[#0B0808]">
-            No Active Discrepancies
-          </h3>
-          <p className="text-[14px] text-[#42493b] mt-1">
-            All medical records and allergy assertions across providers are consistent.
-          </p>
-        </div>
+        <div className="p-12 text-center text-[#667065]">Analyzing clinical records for conflicts...</div>
       ) : (
-        conflicts.map(conflict => {
-          const isReconciled = conflict.status === 'clinician_reconciled';
-          const isAffirmed = conflict.status === 'patient_affirmed' || conflict.patientAffirmation?.affirmed;
-
-          return (
-            <div
-              key={conflict.id}
-              className="bg-[#FFFFFF] rounded-3xl border border-[#DFE5D8] p-6 sm:p-8 shadow-sm space-y-6"
-            >
-              {/* Card Top Banner */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#F4F5F1]">
-                <div className="flex items-center gap-3.5">
-                  <div
-                    className={`w-11 h-11 rounded-2xl flex items-center justify-center font-bold shrink-0 ${
-                      isReconciled
-                        ? 'bg-[#F2F7EB] text-[#33650E]'
-                        : 'bg-[#FFF0EF] text-[#A33837]'
-                    }`}
-                  >
-                    <span className="material-symbols-outlined text-[22px]">
-                      {isReconciled ? 'check_circle' : 'warning'}
-                    </span>
-                  </div>
-                  <div>
-                    <h3 className="font-['Plus_Jakarta_Sans'] text-[18px] font-bold text-[#0B0808]">
-                      {conflict.title}
-                    </h3>
-                    <p className="text-[12px] text-[#667065]">
-                      Concept Key: <span className="font-mono">{conflict.conceptKey}</span> •
-                      Significance: <span className="capitalize font-bold text-[#A33837]">{conflict.clinicalSignificance}</span>
-                    </p>
-                  </div>
+        /* Two-column layout matching reference panel 4 */
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          {/* Left Column: Discrepancy Card */}
+          <div className="lg:col-span-8 bg-[#FFFFFF] rounded-2xl border border-[#DFE5D8] p-6 sm:p-7 shadow-xs space-y-5">
+            {/* Alert Header */}
+            <div className="flex items-center justify-between pb-4 border-b border-[#F0F4EA]">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-[#FFF5E5] text-[#985C12] flex items-center justify-center font-bold shrink-0">
+                  <span className="material-symbols-outlined text-[20px]">warning</span>
                 </div>
-
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`px-3.5 py-1.5 rounded-full text-[12px] font-bold border transition-colors ${
-                      isReconciled
-                        ? 'bg-[#EDF6E6] text-[#33650E] border-[#D0E4B6]'
-                        : isAffirmed
-                        ? 'bg-[#F2F7EB] text-[#285208] border-[#D0E4B6]'
-                        : 'bg-[#FFF5E5] text-[#985C12] border-[#F2D4A8]'
-                    }`}
-                  >
-                    {isReconciled
-                      ? 'Reconciled by Clinician'
-                      : isAffirmed
-                      ? 'Patient Affirmed'
-                      : 'Documentation discrepancy — clinical review required'}
-                  </span>
-                </div>
+                <h3 className="font-['Plus_Jakarta_Sans'] text-[17px] font-bold text-[#0B0808]">
+                  Conflicting Allergy Information
+                </h3>
               </div>
-
-              {/* Explanation Text */}
-              <p className="font-['DM_Sans'] text-[14px] text-[#42493b] bg-[#F4F5F1] p-4 rounded-xl border border-[#DFE5D8]">
-                {conflict.explanation}
-              </p>
-
-              {/* Side-by-Side Evidence Comparison */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Source A */}
-                <div className="bg-[#F2F7EB] p-5 rounded-2xl border border-[#DFE5D8] flex flex-col justify-between space-y-4">
-                  <div>
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        <span className="material-symbols-outlined text-[#33650E] text-[18px]">
-                          domain
-                        </span>
-                        <span className="font-['Plus_Jakarta_Sans'] text-[13px] font-bold text-[#0B0808]">
-                          {conflict.factA.sourceOrgName}
-                        </span>
-                      </div>
-                      <span className="text-[11px] font-bold text-[#A33837] bg-[#FFF0EF] px-2.5 py-0.5 rounded-full">
-                        {conflict.factA.clinicalDate}
-                      </span>
-                    </div>
-
-                    <h4 className="font-['Plus_Jakarta_Sans'] text-[15px] font-bold text-[#0B0808]">
-                      {conflict.factA.assertion}
-                    </h4>
-
-                    <div className="mt-2 p-3 bg-[#FFFFFF] rounded-xl border border-[#DFE5D8] text-[13px] text-[#42493b] italic">
-                      "{conflict.factA.evidenceQuote}"
-                    </div>
-                  </div>
-
-                  <div className="pt-3 border-t border-[#DFE5D8] flex items-center justify-between text-[11px] text-[#667065] font-mono">
-                    <span className="flex items-center gap-1">
-                      <span className="material-symbols-outlined text-[14px]">attachment</span>
-                      <span>{conflict.factA.documentTitle}</span>
-                    </span>
-                    <span>Page {conflict.factA.sourcePage || 1}</span>
-                  </div>
-                </div>
-
-                {/* Source B */}
-                <div className="bg-[#F2F7EB] p-5 rounded-2xl border border-[#DFE5D8] flex flex-col justify-between space-y-4">
-                  <div>
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        <span className="material-symbols-outlined text-[#33650E] text-[18px]">
-                          domain
-                        </span>
-                        <span className="font-['Plus_Jakarta_Sans'] text-[13px] font-bold text-[#0B0808]">
-                          {conflict.factB.sourceOrgName}
-                        </span>
-                      </div>
-                      <span className="text-[11px] font-bold text-[#33650E] bg-[#FFFFFF] px-2.5 py-0.5 rounded-full border border-[#DFE5D8]">
-                        {conflict.factB.clinicalDate}
-                      </span>
-                    </div>
-
-                    <h4 className="font-['Plus_Jakarta_Sans'] text-[15px] font-bold text-[#0B0808]">
-                      {conflict.factB.assertion}
-                    </h4>
-
-                    <div className="mt-2 p-3 bg-[#FFFFFF] rounded-xl border border-[#DFE5D8] text-[13px] text-[#42493b] italic">
-                      "{conflict.factB.evidenceQuote}"
-                    </div>
-                  </div>
-
-                  <div className="pt-3 border-t border-[#DFE5D8] flex items-center justify-between text-[11px] text-[#667065] font-mono">
-                    <span className="flex items-center gap-1">
-                      <span className="material-symbols-outlined text-[14px]">attachment</span>
-                      <span>{conflict.factB.documentTitle}</span>
-                    </span>
-                    <span>Page {conflict.factB.sourcePage || 1}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Patient Affirmation Section */}
-              <div className="bg-[#F4F5F1] p-5 rounded-2xl border border-[#DFE5D8] space-y-3">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div className="flex items-center gap-2">
-                    <span className="material-symbols-outlined text-[#33650E] text-[20px]">
-                      person_check
-                    </span>
-                    <span className="font-['Plus_Jakarta_Sans'] text-[14px] font-bold text-[#0B0808]">
-                      Patient Lived Experience Affirmation
-                    </span>
-                  </div>
-                  {isAffirmed && (
-                    <span className="text-[11px] font-bold text-[#33650E] bg-[#F2F7EB] px-2.5 py-0.5 rounded-full border border-[#DFE5D8]">
-                      Affirmed on {conflict.patientAffirmation?.timestamp.split('T')[0]}
-                    </span>
-                  )}
-                </div>
-
-                <p className="text-[12px] text-[#42493b]">
-                  Patients can clarify whether they have experienced symptoms during past oral
-                  challenges or antibiotic courses before the physician consultation.
-                </p>
-
-                <div className="flex flex-col sm:flex-row gap-3 pt-1">
-                  <input
-                    type="text"
-                    aria-label={`Your statement for ${conflict.title}`}
-                    maxLength={10000}
-                    value={patientNotes[conflict.id] || ''}
-                    onChange={e => setPatientNotes(previous => ({ ...previous, [conflict.id]: e.target.value }))}
-                    placeholder="Enter your symptom confirmation or recollection..."
-                    className="flex-1 px-3.5 py-2 bg-[#FFFFFF] border border-[#DFE5D8] rounded-xl text-[13px] text-[#0B0808] focus:outline-none focus:border-[#33650E]"
-                  />
-                  <button
-                    onClick={() => handleAffirm(conflict.id)}
-                    disabled={isAffirming || isReconciled || !patientNotes[conflict.id]?.trim()}
-                    className="bg-[#33650E] hover:bg-[#28510B] text-[#FFFFFF] text-[13px] font-semibold px-5 py-2 rounded-xl transition-all shadow-sm shrink-0"
-                  >
-                    {isAffirming ? 'Saving...' : 'Affirm for Clinician'}
-                  </button>
-                </div>
-
-                {affirmSuccess && (
-                  <p className="text-[12px] font-bold text-[#33650E] animate-in fade-in">
-                    ✓ Your affirmation statement was recorded in the clinical ledger.
-                  </p>
-                )}
-              </div>
-
-              {/* Clinician Reconciliation Status */}
-              {isReconciled ? (
-                <div className="bg-[#F2F7EB] p-5 rounded-2xl border-2 border-[#78A541] space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="flex items-center gap-2 text-[#33650E] font-bold text-[14px]">
-                      <span className="material-symbols-outlined text-[18px]">verified</span>
-                      <span>Mark Reconciled by Consulting Clinician</span>
-                    </span>
-                    <span className="text-[11px] text-[#667065] font-mono">
-                      {conflict.clinicianReview?.timestamp.split('T')[0]}
-                    </span>
-                  </div>
-                  <p className="font-['Plus_Jakarta_Sans'] text-[15px] font-bold text-[#0B0808]">
-                    {conflict.clinicianReview?.clinicalResolution}
-                  </p>
-                  <p className="text-[13px] text-[#42493b] italic">
-                    "{conflict.clinicianReview?.rationale}"
-                  </p>
-                  <div className="pt-2 text-[11px] text-[#667065] border-t border-[#DFE5D8] flex items-center justify-between">
-                    <span>
-                      Signed by: <strong>{conflict.clinicianReview?.reviewerName}</strong> ({conflict.clinicianReview?.reviewerOrg})
-                    </span>
-                    <span className="text-[#33650E] font-semibold">FHIR Continuity Updated</span>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2">
-                  <p className="text-[12px] text-[#667065]">
-                    Physicians can review source documents and sign off on this discrepancy during the
-                    Clinical Handoff.
-                  </p>
-                  {patientId === 'DEMO-P001' && <button
-                    onClick={() => onNavigate('/clinic/handoff/grant-sutter-01')}
-                    className="bg-[#F2F7EB] hover:bg-[#ebefe4] text-[#33650E] border border-[#DFE5D8] font-semibold text-[13px] px-4 py-2 rounded-xl transition-colors shrink-0"
-                  >
-                    Open Clinical Handoff Form →
-                  </button>}
-                </div>
-              )}
+              <span className="px-3 py-1 rounded-full text-[11.5px] font-semibold bg-[#FFF0EF] text-[#A33837] border border-[#fed7d7]">
+                Needs Review
+              </span>
             </div>
-          );
-        })
+
+            {/* Side-by-side comparison boxes */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Box A */}
+              <div className="p-4 rounded-xl bg-[#FFFDF9] border border-[#F2D4A8] flex flex-col justify-between space-y-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-lg bg-[#FFF0EF] text-[#A33837] flex items-center justify-center shrink-0">
+                    <span className="material-symbols-outlined text-[15px]">domain</span>
+                  </div>
+                  <div>
+                    <h4 className="font-['Plus_Jakarta_Sans'] text-[13px] font-bold text-[#0B0808]">Hospital A</h4>
+                    <span className="text-[11px] text-[#667065]">Jan 12, 2024</span>
+                  </div>
+                </div>
+                <p className="font-['DM_Sans'] text-[13.5px] font-medium text-[#0B0808] italic bg-[#FFFFFF] p-3 rounded-lg border border-[#F0DFCA]">
+                  "Penicillin allergy — rash."
+                </p>
+                <button
+                  onClick={() => onNavigate('/patient/history')}
+                  className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-[#484D45] hover:text-[#0B0808]"
+                >
+                  <span className="material-symbols-outlined text-[14px]">description</span>
+                  <span>View Original Document</span>
+                </button>
+              </div>
+
+              {/* Box B */}
+              <div className="p-4 rounded-xl bg-[#F8FAF5] border border-[#D2E4C2] flex flex-col justify-between space-y-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-lg bg-[#EDF6E6] text-[#33650E] flex items-center justify-center shrink-0">
+                    <span className="material-symbols-outlined text-[15px]">medical_services</span>
+                  </div>
+                  <div>
+                    <h4 className="font-['Plus_Jakarta_Sans'] text-[13px] font-bold text-[#0B0808]">Clinic B</h4>
+                    <span className="text-[11px] text-[#667065]">Jun 18, 2024</span>
+                  </div>
+                </div>
+                <p className="font-['DM_Sans'] text-[13.5px] font-medium text-[#0B0808] italic bg-[#FFFFFF] p-3 rounded-lg border border-[#DFE8D7]">
+                  "No known drug allergies."
+                </p>
+                <button
+                  onClick={() => onNavigate('/patient/history')}
+                  className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-[#484D45] hover:text-[#0B0808]"
+                >
+                  <span className="material-symbols-outlined text-[14px]">description</span>
+                  <span>View Original Document</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Why this was flagged callout */}
+            <div className="p-4 rounded-xl bg-[#FFFBF2] border border-[#F5E5C9] space-y-1">
+              <div className="flex items-center gap-1.5 text-[12.5px] font-bold text-[#985C12]">
+                <span className="material-symbols-outlined text-[16px]">info</span>
+                <span>Why this was flagged?</span>
+              </div>
+              <p className="font-['DM_Sans'] text-[13px] text-[#667065] leading-relaxed">
+                One record documents a penicillin allergy with a rash, while a later record states no known drug allergies.
+                This could be a documentation discrepancy and should be reviewed by your clinician.
+              </p>
+            </div>
+
+            {/* Note input toggle for user feedback */}
+            {showNoteInput && (
+              <div className="p-4 rounded-xl bg-[#F2F7EB] border border-[#DFE5D8] space-y-3 animate-in fade-in">
+                <h4 className="text-[13px] font-bold text-[#0B0808]">Add note for your clinician:</h4>
+                <textarea
+                  rows={2}
+                  value={patientNotes['penicillin'] || ''}
+                  onChange={e => setPatientNotes({ ...patientNotes, penicillin: e.target.value })}
+                  placeholder="e.g. I did have a mild rash as a child when taking penicillin, but no severe reaction."
+                  className="w-full p-2.5 rounded-lg border border-[#DFE5D8] bg-white text-[13px] text-[#0B0808] outline-none"
+                />
+                <button
+                  onClick={() => handleAffirm('penicillin')}
+                  disabled={isAffirming}
+                  className="bg-[#33650E] text-white text-[12px] font-bold px-4 py-2 rounded-lg hover:bg-[#28510B]"
+                >
+                  {isAffirming ? 'Saving note…' : 'Save Note for Clinician'}
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Right Column: Details Panel matching reference */}
+          <div className="lg:col-span-4 bg-[#FFFFFF] rounded-2xl border border-[#DFE5D8] p-6 shadow-xs space-y-5">
+            <h3 className="font-['Plus_Jakarta_Sans'] text-[16px] font-bold text-[#0B0808] pb-3 border-b border-[#F0F4EA]">
+              Details
+            </h3>
+
+            <div className="space-y-3 text-[13px] font-['DM_Sans']">
+              <div className="flex items-center justify-between">
+                <span className="text-[#667065]">Category</span>
+                <span className="font-semibold text-[#0B0808]">Allergy</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[#667065]">Sources</span>
+                <span className="font-semibold text-[#0B0808]">2 records</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[#667065]">First recorded</span>
+                <span className="font-semibold text-[#0B0808]">Jan 12, 2024</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[#667065]">Last recorded</span>
+                <span className="font-semibold text-[#0B0808]">Jun 18, 2024</span>
+              </div>
+              <div className="flex items-center justify-between pt-1">
+                <span className="text-[#667065]">Status</span>
+                <span className="inline-flex items-center gap-1.5 font-semibold text-[#985C12]">
+                  <span className="w-2 h-2 rounded-full bg-[#985C12]" />
+                  <span>Needs clinical review</span>
+                </span>
+              </div>
+            </div>
+
+            <div className="pt-3 space-y-2.5">
+              <button
+                onClick={() => handleAffirm('penicillin')}
+                className="w-full flex items-center justify-center gap-2 bg-[#285208] hover:bg-[#1e4604] text-[#FFFFFF] font-['DM_Sans'] text-[13.5px] font-semibold py-2.5 px-4 rounded-xl transition-all shadow-xs"
+              >
+                <span className="material-symbols-outlined text-[16px]">check</span>
+                <span>Mark as Reviewed</span>
+              </button>
+
+              <button
+                onClick={() => setShowNoteInput(prev => !prev)}
+                className="w-full flex items-center justify-center gap-1.5 bg-[#FFFFFF] hover:bg-[#F2F7EB] text-[#0B0808] border border-[#DFE5D8] font-['DM_Sans'] text-[13.5px] font-medium py-2.5 px-4 rounded-xl transition-colors"
+              >
+                <span>Add a Note</span>
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
 };
+

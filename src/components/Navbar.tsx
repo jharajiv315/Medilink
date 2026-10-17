@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext.tsx';
 import { Modal } from './ui/Modal.tsx';
+import { Logo } from './ui/Logo.tsx';
 import {
   Shield,
   ShieldCheck,
@@ -208,114 +209,46 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath, onNavigate }) => {
               className="group flex items-center gap-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#33650E] rounded-xl py-1 transition-transform active:scale-[0.98]"
               title="MediLink Home"
             >
-              {/* Premium Geometric Brandmark */}
-              <div className="relative w-10 h-10 rounded-2xl bg-gradient-to-br from-[#1C3E07] via-[#2E5E0C] to-[#3B7310] flex items-center justify-center shadow-[0_2px_8px_rgba(46,94,12,0.28)] ring-1 ring-white/30 group-hover:shadow-[0_4px_16px_rgba(46,94,12,0.36)] transition-all shrink-0">
-                {/* Micro inner glow */}
-                <div className="absolute inset-0 rounded-2xl bg-gradient-to-t from-transparent to-white/20 pointer-events-none" />
-                
-                {/* Crisp Vector Medical Continuity Symbol */}
-                <svg
-                  className="w-5 h-5 text-white transform transition-transform group-hover:scale-105 duration-300 relative z-10"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.4"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M12 4v16" stroke="#FFFFFF" strokeWidth="2.5" />
-                  <path d="M4 12h16" stroke="#FFFFFF" strokeWidth="2.5" />
-                  <circle cx="12" cy="12" r="3.2" fill="#BDEF81" stroke="#234E09" strokeWidth="1.5" />
-                  <circle cx="12" cy="12" r="1.2" fill="#FFFFFF" />
-                </svg>
-
-                {/* Clean live indicator ring without continuous ping layout shift */}
-                <span className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-[#78A541] border border-white" />
-                </span>
-              </div>
-
-              {/* Brand Typography */}
-              <div className="flex flex-col">
-                <div className="flex items-center gap-2">
-                  <span className="font-['Plus_Jakarta_Sans'] font-extrabold text-[21px] text-[#0B0808] tracking-tight group-hover:text-[#2E5E0C] transition-colors leading-none">
-                    MediLink
-                  </span>
-                  
-                  {/* Subtle luxury brand tag */}
-                  <span className="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded-[5px] text-[9.5px] font-bold tracking-wider uppercase bg-[#F2F7EB] text-[#2E5E0C] border border-[#D5E1CD]">
-                    PRO
-                  </span>
-                </div>
-                <span className="text-[10.5px] font-medium text-[#64705F] tracking-tight -mt-0.5 hidden sm:block">
-                  Connected Health Records
-                </span>
-              </div>
+              <Logo size="md" />
             </button>
-
-            {/* In-App Context Pill */}
-            {!isMarketingPage && (
-              <div className={`${currentUser.role === 'patient' ? 'hidden lg:flex' : 'hidden 2xl:flex'} items-center pl-3 border-l border-[#DFE5D8]`}>
-                {currentUser.role === 'patient' ? (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#F2F7EB] text-[#2E5E0C] border border-[#D4E0CC]">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#78A541]" />
-                    <span>Patient Portal</span>
-                    <span className="text-stone-400 text-[10px]">•</span>
-                    <span className="text-stone-500 font-normal">{currentUser.name.split(' ')[0]}</span>
-                  </span>
-                ) : currentUser.role === 'admin' ? (
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-[#DCE4D5] bg-white px-2.5 py-1 text-[11px] font-semibold text-[#53614C]">
-                    <ShieldCheck className="h-3 w-3 text-[#33650E]" /> MediLink Administration
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#214D09] text-white shadow-xs">
-                    <Stethoscope className="w-3 h-3 text-[#BDEF81]" />
-                    <span>Clinical Suite</span>
-                    <span className="text-emerald-300 text-[10px]">•</span>
-                    <span className="text-emerald-100 font-normal max-w-28 truncate">{currentUser.organization || 'Doctor'}</span>
-                  </span>
-                )}
-              </div>
-            )}
           </div>
 
           {/* ================= CENTER: NAVIGATION ================= */}
           {isMarketingPage ? (
-            <nav aria-label="Main navigation" className="hidden xl:flex items-center gap-1 bg-[#F3F7EE] p-1 rounded-2xl border border-[#DCE4D5] shadow-xs">
+            <nav aria-label="Main navigation" className="hidden lg:flex items-center gap-2">
               <button
                 onClick={() => onNavigate('/')}
-                className={`px-3 py-1.5 rounded-xl text-[12.5px] font-semibold transition-all duration-200 ${
+                className={`relative px-3 py-1.5 text-[14px] font-medium transition-colors ${
                   currentPath === '/'
-                    ? 'bg-white text-[#214D09] shadow-sm font-bold ring-1 ring-black/[0.04]'
-                    : 'text-[#485244] hover:text-[#0B0808] hover:bg-white/60'
+                    ? 'text-[#33650E] font-bold after:content-[""] after:absolute after:bottom-0 after:left-3 after:right-3 after:h-[2px] after:bg-[#33650E] after:rounded-full'
+                    : 'text-[#484D45] hover:text-[#0B0808]'
                 }`}
               >
                 Home
               </button>
               <button
                 onClick={() => onNavigate('/#how-it-works')}
-                className="px-3 py-1.5 rounded-xl text-[12.5px] font-semibold text-[#485244] hover:text-[#0B0808] hover:bg-white/60 transition-colors"
-              >
-                How It Works
-              </button>
-              <button
-                onClick={() => onNavigate('/#features')}
-                className="px-3 py-1.5 rounded-xl text-[12.5px] font-semibold text-[#485244] hover:text-[#0B0808] hover:bg-white/60 transition-colors"
+                className="px-3 py-1.5 text-[14px] font-medium text-[#484D45] hover:text-[#0B0808] transition-colors"
               >
                 Features
               </button>
               <button
-                onClick={() => onNavigate('/clinic/dashboard')}
-                className="px-3 py-1.5 rounded-xl text-[12.5px] font-semibold text-[#485244] hover:text-[#0B0808] hover:bg-white/60 transition-colors flex items-center gap-1.5"
+                onClick={() => onNavigate(portalPath)}
+                className="px-3 py-1.5 text-[14px] font-medium text-[#484D45] hover:text-[#0B0808] transition-colors"
               >
-                <Stethoscope className="w-3.5 h-3.5 text-[#33650E]" />
-                <span>For Clinics</span>
+                For Patients
               </button>
               <button
-                onClick={() => onNavigate('/#faq')}
-                className="px-3 py-1.5 rounded-xl text-[12.5px] font-semibold text-[#485244] hover:text-[#0B0808] hover:bg-white/60 transition-colors"
+                onClick={() => onNavigate('/clinic/dashboard')}
+                className="px-3 py-1.5 text-[14px] font-medium text-[#484D45] hover:text-[#0B0808] transition-colors"
               >
-                FAQ
+                For Clinicians
+              </button>
+              <button
+                onClick={() => onNavigate('/#about')}
+                className="px-3 py-1.5 text-[14px] font-medium text-[#484D45] hover:text-[#0B0808] transition-colors"
+              >
+                About
               </button>
             </nav>
           ) : (
@@ -468,19 +401,19 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath, onNavigate }) => {
 
             {/* Marketing primary action button */}
             {isMarketingPage ? (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2.5">
                 <button
                   onClick={() => onNavigate('/login')}
-                  className="hidden md:inline-flex items-center text-[13px] font-semibold text-[#485244] hover:text-[#0B0808] px-3 py-2 rounded-xl hover:bg-[#F2F7EB] transition-colors"
+                  className="inline-flex items-center text-[13.5px] font-semibold text-[#0B0808] hover:bg-[#F2F7EB] px-4 py-2 rounded-full border border-[#DFE5D8] bg-[#FFFFFF] shadow-2xs transition-colors"
                 >
                   Sign In
                 </button>
                 <button
                   onClick={() => onNavigate(portalPath)}
-                  className="hidden sm:inline-flex items-center gap-2 bg-[#33650E] hover:bg-[#28510B] text-white font-['DM_Sans'] text-[13px] font-semibold px-4 py-2 rounded-xl transition-all shadow-sm active:scale-[0.98]"
+                  className="inline-flex items-center gap-1.5 bg-[#33650E] hover:bg-[#28510B] text-white font-['DM_Sans'] text-[13.5px] font-semibold px-4.5 py-2 rounded-full transition-all shadow-xs active:scale-[0.98]"
                 >
-                  <span>Open Portal</span>
-                  <ArrowRight className="w-4 h-4" />
+                  <span>Get Started</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </div>
             ) : (

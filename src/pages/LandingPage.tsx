@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext.tsx';
+import { BotanicalHero } from '../components/botanical/BotanicalHero.tsx';
 
 interface LandingPageProps {
   onNavigate: (path: string) => void;
@@ -80,40 +81,38 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
               </button>
             </div>
 
-            {/* Trust Badges Bar */}
-            <div className="pt-2 flex flex-wrap items-center gap-x-5 gap-y-2 text-[#42493b] font-['DM_Sans'] text-[12px]">
-              <span className="inline-flex items-center gap-1.5 font-medium">
-                <span className="material-symbols-outlined text-[#33650E] text-[16px]">
-                  verified
+            {/* Three Benefit Pill Badges */}
+            <div className="pt-2 flex flex-wrap items-center gap-3 w-full">
+              <div className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-[#FFFFFF] border border-[#DFE5D8] shadow-xs transition-transform hover:scale-[1.02]">
+                <div className="w-7 h-7 rounded-full bg-[#F2F7EB] flex items-center justify-center text-[#33650E]">
+                  <span className="material-symbols-outlined text-[16px]">edit_note</span>
+                </div>
+                <span className="font-['DM_Sans'] text-[13px] font-medium text-[#484D45]">
+                  Your records, always with you
                 </span>
-                Patient-controlled consent
-              </span>
-              <span className="text-[#c2c9b7]">•</span>
-              <span className="inline-flex items-center gap-1.5 font-medium">
-                <span className="material-symbols-outlined text-[#33650E] text-[16px]">lock</span>
-                Zero-knowledge encryption
-              </span>
-              <span className="text-[#c2c9b7]">•</span>
-              <span className="inline-flex items-center gap-1.5 font-medium">
-                <span className="material-symbols-outlined text-[#33650E] text-[16px]">
-                  sync_alt
+              </div>
+              <div className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-[#FFFFFF] border border-[#DFE5D8] shadow-xs transition-transform hover:scale-[1.02]">
+                <div className="w-7 h-7 rounded-full bg-[#F2F7EB] flex items-center justify-center text-[#33650E]">
+                  <span className="material-symbols-outlined text-[16px]">balance</span>
+                </div>
+                <span className="font-['DM_Sans'] text-[13px] font-medium text-[#484D45]">
+                  Identify discrepancies
                 </span>
-                FHIR R4 interoperability
-              </span>
+              </div>
+              <div className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-[#FFFFFF] border border-[#DFE5D8] shadow-xs transition-transform hover:scale-[1.02]">
+                <div className="w-7 h-7 rounded-full bg-[#F2F7EB] flex items-center justify-center text-[#33650E]">
+                  <span className="material-symbols-outlined text-[16px]">link</span>
+                </div>
+                <span className="font-['DM_Sans'] text-[13px] font-medium text-[#484D45]">
+                  Share securely with your care team
+                </span>
+              </div>
             </div>
           </div>
 
-          {/* Right Column: Unobstructed consultation photo */}
+          {/* Right Column: Botanical Hero with blended consultation photo and Bulbasaur */}
           <div className="lg:col-span-6 relative">
-            <div className="rounded-3xl bg-[#F2F7EB] p-3 sm:p-4 shadow-lg border border-[#DFE5D8] overflow-hidden">
-              <div className="relative rounded-2xl overflow-hidden aspect-[4/3] w-full bg-[#ebefe4]">
-                <img
-                  alt="Authentic healthcare consultation in a calm, modern clinic"
-                  className="w-full h-full object-cover"
-                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuD3snnLrxXlUdbHeLxY_0lxmfXwQLnnjN1ewTclfYTHj28TWFjJC8krWgIYm_6F8hE65VjrDW7BXo0JWWjj3zaUKPYrwfeb-N8xXbvEoXu3ThqKD96ZwO99xL8Y6o7WOGMfL1oouRI-cqcE5bYyQZ4KavWpGfKLmFvtLd1r1jg8KUKYOQTn2gskdrofQkpKY72BvZYMmX3I33cVbSzCPHQOD428YBsxbCJi1vsk93SoVZHh3kor_xeJ"
-                />
-              </div>
-            </div>
+            <BotanicalHero />
           </div>
         </div>
       </section>

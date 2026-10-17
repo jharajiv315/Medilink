@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 450" fill="none">
+  <!-- Soft floating leaf accents around the hero -->
+  <g opacity="0.9">
+    <!-- Top right drifting leaf -->
+    <path d="M520 40 C 560 30 580 50 570 75 C 540 80 520 60 520 40 Z" fill="#6F9140" transform="rotate(-15 540 60)"/>
+    <path d="M565 105 C 595 110 605 130 590 145 C 570 140 560 120 565 105 Z" fill="#78A541" transform="rotate(25 580 125)"/>
+    <!-- Bottom right large glossy leaves -->
+    <path d="M510 390 C 560 360 585 380 575 420 C 530 435 500 415 510 390 Z" fill="#58872b" transform="rotate(-10 540 400)"/>
+    <path d="M440 410 C 480 390 505 405 495 435 C 460 445 435 430 440 410 Z" fill="#78A541"/>
+    <!-- Base foliage grass blades -->
+    <path d="M260 440 Q 250 390 240 370 Q 255 395 270 440 Z" fill="#4e8020"/>
+    <path d="M280 440 Q 290 380 310 360 Q 300 395 290 440 Z" fill="#689e2c"/>
+    <path d="M245 440 Q 230 400 220 385 Q 240 405 255 440 Z" fill="#3b6616"/>
+  </g>
+</svg>
