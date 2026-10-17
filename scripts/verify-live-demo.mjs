@@ -64,6 +64,8 @@ try {
   console.log('SETUP: mobile patient signed in');
   await login(dr, '/clinic/dashboard', 'm.vance@sutterhealth.org', process.env.CLINICIAN_PASSWORD);
   console.log('SETUP: desktop doctor signed in');
+  await json(patient, '/api/clinic/dashboard', undefined, 403);
+  await json(patient, '/api/auth/login', { email, password: 'deliberately-incorrect-password' }, 401);
   for (const name of ['Hospital A: Discharge Record', 'Clinic B: Negative Challenge']) {
     console.log('IMPORT: ' + name);
     await pt.getByRole('button', { name: new RegExp(name) }).click();
@@ -77,6 +79,9 @@ try {
   const timeline = await json(patient, route + '/timeline');
   assert.equal(timeline.timeline.filter(item => item.itemType === 'document').length, 2);
   for (const item of timeline.timeline) assert.match(item.sha256Hash, /^[a-f0-9]{64}$/);
+  const original = timeline.timeline.find(item => item.itemType === 'document');
+  assert.equal(crypto.createHash('sha256').update(original.details).digest('hex'), original.sha256Hash);
+  await json(patient, route + '/ingest', { title: original.title, rawText: original.details, documentType: 'allergy_challenge' }, 409);
   await pt.goto(base + '/patient/history');
   await pt.getByRole('heading', { name: 'Medical History Timeline' }).waitFor();
   await screenshot(pt, '01-source-timeline-mobile');
