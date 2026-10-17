@@ -67,7 +67,7 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({ onNavigate }
   };
 
   return (
-    <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-8 space-y-8">
+    <div className="relative isolate max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-8 space-y-8">
       <BotanicalBackground position="bottom-right" />
       {/* Welcome Banner */}
       <div className="bg-[#FFFFFF] rounded-3xl p-6 sm:p-8 border border-[#DFE5D8] shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-6">

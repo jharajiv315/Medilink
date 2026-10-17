@@ -10,7 +10,7 @@ export const BotanicalBackground: React.FC<BotanicalBackgroundProps> = ({
   className = ''
 }) => {
   return (
-    <div className={`pointer-events-none fixed inset-0 overflow-hidden z-0 select-none ${className}`} aria-hidden="true">
+    <div className={`pointer-events-none absolute inset-0 overflow-hidden -z-10 select-none ${className}`} aria-hidden="true">
       {(position === 'top-right' || position === 'both-corners') && (
         <div className="absolute top-0 right-0 w-64 md:w-80 lg:w-96 h-64 md:h-80 lg:h-96 opacity-35 mix-blend-multiply transition-opacity duration-500">
           <img
