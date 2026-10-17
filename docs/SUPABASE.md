@@ -17,7 +17,7 @@ clients have no clinical data access.
 TLS verifies the server certificate and hostname using Supabase's official
 public root CA in `src/server/supabaseTls.ts`.
 
-The API loads fresh state inside a transaction with a row lock. Each request
+The API loads fresh state inside a transaction; mutations acquire a row lock. Each request
 uses AsyncLocalStorage to isolate its state. Changes commit before JSON or
 session cookies are sent. A save failure rolls back the request and returns
 503, so it cannot silently succeed against an ephemeral Vercel filesystem.
@@ -26,6 +26,9 @@ The compatibility store uses one JSONB row. It deliberately preserves the
 existing record format and is suitable for the current demonstration workload.
 Transactions serialize against this row; a larger deployment should normalize
 clinical/identity entities and use per-record queries and transactions.
+Read-only endpoints do not wait on the write lock. Normal endpoints omit the
+old audit history from their database result and append new events atomically;
+the audit endpoint and administrator reset load the full history.
 
 ## Migration and recovery
 

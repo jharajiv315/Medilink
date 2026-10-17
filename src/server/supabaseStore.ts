@@ -45,13 +45,23 @@ export function databaseMiddleware(initializeCredentials: () => void, getPool = 
     let captured = false;
     try {
       const sql = getPool();
+      const includeAudit = req.path === '/api/audit' || req.path === '/api/db/reset';
+      const readOnly = req.method === 'GET' && !req.path.startsWith('/api/clinic/handoff/');
       await sql.begin(async transaction => {
         await transaction`set local lock_timeout = '8s'`;
         await transaction`set local statement_timeout = '12s'`;
         // Serializes the short, synchronous legacy mutations across ALL Vercel
         // instances, preventing read/modify/write races and lost updates.
-        const [row] = await transaction`select payload from medilink.app_state where id = 'primary' for update`;
+        const rows = readOnly
+          ? includeAudit
+            ? await transaction`select payload from medilink.app_state where id = 'primary'`
+            : await transaction`select payload - 'auditLogs' as payload from medilink.app_state where id = 'primary'`
+          : includeAudit
+            ? await transaction`select payload from medilink.app_state where id = 'primary' for update`
+            : await transaction`select payload - 'auditLogs' as payload from medilink.app_state where id = 'primary' for update`;
+        const [row] = rows;
         if (!row) throw new Error('Database has not been initialized.');
+        if (!includeAudit) row.payload.auditLogs = [];
         validateDatabase(row.payload);
         const store: RequestStore = { data: row.payload, dirty: false };
         await requestStore.run(store, async () => {
@@ -67,7 +77,7 @@ export function databaseMiddleware(initializeCredentials: () => void, getPool = 
               return res;
             }) as Response['json'];
             try {
-              initializeCredentials();
+              if (req.path === '/api/auth/login') initializeCredentials();
               next();
             } catch (error) {
               clearTimeout(timeout);
@@ -77,8 +87,15 @@ export function databaseMiddleware(initializeCredentials: () => void, getPool = 
           if (res.destroyed) throw new Error('Client disconnected.');
           if (res.statusCode >= 500) throw new Error('API handler failed; rolling back changes.');
           if (store.dirty) {
+            if (readOnly) throw new Error('Read-only API attempted to mutate state.');
             validateDatabase(store.data);
-            await transaction`update medilink.app_state set payload = ${transaction.json(store.data as any)}, revision = revision + 1, updated_at = now() where id = 'primary'`;
+            if (includeAudit) {
+              await transaction`update medilink.app_state set payload = ${transaction.json(store.data as any)}, revision = revision + 1, updated_at = now() where id = 'primary'`;
+            } else {
+              // Most routes only append audit events. Preserve the existing
+              // history in Postgres instead of retransmitting it per request.
+              await transaction`update medilink.app_state set payload = jsonb_set(${transaction.json(store.data as any)}::jsonb, '{auditLogs}', ${transaction.json(store.data.auditLogs as any)}::jsonb || (payload->'auditLogs')), revision = revision + 1, updated_at = now() where id = 'primary'`;
+            }
           }
         });
       });

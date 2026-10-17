@@ -17,7 +17,9 @@ test('Supabase middleware commits before returning success and rolls back failed
     if (query.startsWith('select payload')) return [{ payload: structuredClone(stored) }];
     if (query.startsWith('update medilink')) {
       if (failCommit) throw Object.assign(new Error('private connection detail must not leak'), { code: '08006' });
-      stored = structuredClone(values[0]) as typeof stored;
+      const updated = structuredClone(values[0]) as typeof stored;
+      if (query.includes('jsonb_set')) updated.auditLogs = [...updated.auditLogs, ...stored.auditLogs];
+      stored = updated;
     }
     return [];
   };
@@ -42,12 +44,16 @@ test('Supabase middleware commits before returning success and rolls back failed
     assert.equal(success.status, 200);
     assert.equal(committed, true);
     assert.equal(stored.auditLogs.length, 1);
+    committed = false;
+    const second = await fetch(endpoint, { method: 'POST' });
+    assert.equal(second.status, 200);
+    assert.equal(stored.auditLogs.length, 2, 'appending must preserve earlier audit events');
     failCommit = true;
     committed = false;
     const failed = await fetch(endpoint, { method: 'POST' });
     assert.equal(failed.status, 503);
     assert.equal(failed.headers.get('set-cookie'), null);
-    assert.equal(stored.auditLogs.length, 1, 'failed write must not affect committed state');
+    assert.equal(stored.auditLogs.length, 2, 'failed write must not affect committed state');
     assert(!JSON.stringify(await failed.json()).includes('private connection'));
   } finally {
     await new Promise<void>(resolve => server.close(() => resolve()));
