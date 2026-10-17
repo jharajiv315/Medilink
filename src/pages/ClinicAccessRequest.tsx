@@ -100,6 +100,7 @@ export const ClinicAccessRequest: React.FC<ClinicAccessRequestProps> = ({ onNavi
             </label>
             <input
               type="text"
+              aria-label="Patient code"
               value={patientCode}
               onChange={e => setPatientCode(e.target.value)}
               required
@@ -116,6 +117,7 @@ export const ClinicAccessRequest: React.FC<ClinicAccessRequestProps> = ({ onNavi
               Access duration
             </label>
             <select
+              aria-label="Requested access duration"
               value={durationDays}
               onChange={e => setDurationDays(Number(e.target.value))}
               className="w-full h-11 px-3.5 bg-[#FFFFFF] border border-[#DFE5D8] rounded-xl text-[14px] text-[#0B0808] focus:outline-none focus:border-[#33650E]"
@@ -134,6 +136,8 @@ export const ClinicAccessRequest: React.FC<ClinicAccessRequestProps> = ({ onNavi
           </label>
           <input
             type="text"
+            aria-label="Reason for access"
+            maxLength={2000}
             value={purpose}
             onChange={e => setPurpose(e.target.value)}
             required

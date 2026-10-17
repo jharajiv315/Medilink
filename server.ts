@@ -557,7 +557,13 @@ app.post('/api/patients/:patientId/ingest', (req: Request, res: Response) => {
     return res.status(404).json({ error: 'Patient not found' });
   }
 
-  const docId = `doc-${Date.now()}`;
+  if (typeof rawText !== 'string' || !rawText.trim() || rawText.length > 100000 || typeof title !== 'string' || !title.trim() || title.length > 500) {
+    return res.status(400).json({ error: 'Provide a document title and clinical text (up to 100,000 characters).' });
+  }
+  const documentTypes = ['specialty_consult', 'discharge_summary', 'lab_report', 'prescription_order', 'allergy_challenge'];
+  if (documentType && !documentTypes.includes(documentType)) return res.status(400).json({ error: 'Choose a supported document type.' });
+  if (clinicalDate && (typeof clinicalDate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(clinicalDate) || !Number.isFinite(Date.parse(clinicalDate)))) return res.status(400).json({ error: 'Enter a valid clinical date.' });
+  const docId = `doc-${crypto.randomUUID()}`;
   const sha256Hash = crypto.createHash('sha256').update(rawText).digest('hex');
 
   // Verify document deduplication via content hash
@@ -580,7 +586,7 @@ app.post('/api/patients/:patientId/ingest', (req: Request, res: Response) => {
     clinicalDate: clinicalDate || new Date().toISOString().split('T')[0],
     uploadedAt: new Date().toISOString(),
     fileName: fileName || `${title.replace(/\s+/g, '_')}.pdf`,
-    fileSize: `${Math.floor(rawText.length / 10 + 120)} KB`,
+    fileSize: `${Math.max(1, Math.ceil(Buffer.byteLength(rawText, 'utf8') / 1024))} KB`,
     sha256Hash,
     rawTextExcerpt: rawText,
     status: 'indexed'
@@ -700,6 +706,17 @@ app.post('/api/patients/:patientId/consents/:grantId/approve', (req: Request, re
     return res.status(404).json({ error: 'Grant request not found' });
   }
 
+  if (grant.status !== 'pending') return res.status(409).json({ error: 'This request has already been processed. Refresh sharing to see its current status.' });
+  if (!Array.isArray(approvedCategories) || !approvedCategories.length || approvedCategories.some(category => !grant.requestedCategories.includes(category))) {
+    return res.status(400).json({ error: 'Choose at least one of the requested record categories.' });
+  }
+  if (durationMinutes != null && (!Number.isInteger(durationMinutes) || durationMinutes < 1 || durationMinutes > 1440)) {
+    return res.status(400).json({ error: 'Choose a duration between 1 and 1440 minutes.' });
+  }
+  if (durationMinutes == null && (!Number.isInteger(durationDays) || durationDays < 1 || durationDays > 90)) {
+    return res.status(400).json({ error: 'Choose a duration between 1 and 90 days.' });
+  }
+
   let expiresAt: string;
   let durationDesc: string;
   if (durationMinutes && typeof durationMinutes === 'number') {
@@ -763,14 +780,22 @@ app.post('/api/patients/:patientId/consents/:grantId/revoke', (req: Request, res
 app.post('/api/clinic/requests', (req: Request, res: Response) => {
   const { patientCode, purpose, requestedCategories, durationDays } = req.body;
   const clinician = getRequestUser(req);
+  const categories: AccessCategory[] = ['Allergies', 'Medications', 'Lab Reports', 'Consultations', 'Cardiology', 'Behavioral Health'];
+  if (typeof patientCode !== 'string' || !patientCode.trim() || typeof purpose !== 'string' || !purpose.trim() || purpose.length > 2000) {
+    return res.status(400).json({ error: 'Enter the patient code and a clinical purpose.' });
+  }
+  if (!Array.isArray(requestedCategories) || !requestedCategories.length || requestedCategories.some(category => !categories.includes(category))) {
+    return res.status(400).json({ error: 'Select at least one valid record category.' });
+  }
+  if (!Number.isInteger(durationDays) || durationDays < 1 || durationDays > 90) return res.status(400).json({ error: 'Choose a duration between 1 and 90 days.' });
 
   const db = getDb();
-  const patient = db.patients.find(p => p.patientCode === patientCode || p.id === patientCode);
+  const patient = db.patients.find(p => p.patientCode === patientCode.trim() || p.id === patientCode.trim());
   if (!patient) {
     return res.status(404).json({ error: 'No patient was found for that patient code.' });
   }
 
-  const grantId = `grant-${Date.now()}`;
+  const grantId = `grant-${crypto.randomUUID()}`;
   const newGrant: AccessGrant = {
     id: grantId,
     requesterUserId: clinician.id,
@@ -942,12 +967,19 @@ app.post('/api/clinic/handoff/:grantId/reconcile', (req: Request, res: Response)
     return res.status(404).json({ error: 'Conflict not found' });
   }
 
+  const category = conflict.conceptKey === 'penicillin' ? 'Allergies' : conflict.conceptKey === 'metformin' ? 'Medications' : null;
+  if (!category || !grant.approvedCategories.includes(category)) return res.status(403).json({ error: 'This discrepancy is outside the approved sharing categories.' });
+  if (conflict.status === 'clinician_reconciled') return res.status(409).json({ error: 'This discrepancy has already been reconciled. Refresh the handoff.' });
+  if (typeof clinicalResolution !== 'string' || !clinicalResolution.trim() || clinicalResolution.length > 2000 || typeof rationale !== 'string' || !rationale.trim() || rationale.length > 10000) {
+    return res.status(400).json({ error: 'Enter your clinical determination and supporting rationale.' });
+  }
+
   const reconciled = applyClinicianReconciliation(
     conflict,
     {
-      name: grant.requesterName,
-      role: grant.requesterTitle || 'Attending Physician',
-      org: grant.requestingOrgName
+      name: getRequestUser(req).name,
+      role: getRequestUser(req).title || 'Attending Physician',
+      org: getRequestUser(req).organization || grant.requestingOrgName
     },
     clinicalResolution || 'Reconciled upon direct clinical review and negative challenge.',
     rationale || 'Patient confirmed negative challenge without adverse reaction.'

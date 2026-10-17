@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext.tsx';
 import { Modal } from '../components/ui/Modal.tsx';
+import { PageState } from '../components/ui/PageState.tsx';
 import type { AccessCategory } from '../types/medilink.ts';
 
 interface TimelineItem {
@@ -30,20 +31,32 @@ export const PatientHistory: React.FC<PatientHistoryProps> = ({ onNavigate }) =>
   const [searchQuery, setSearchQuery] = useState('');
   const [activeModalItem, setActiveModalItem] = useState<TimelineItem | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
+    const controller = new AbortController();
+    setError('');
+    setLoading(true);
     fetch(`/api/patients/${patientId}/timeline`, {
-      headers: getAuthHeaders()
+      headers: getAuthHeaders(), signal: controller.signal
     })
-      .then(res => res.json())
+      .then(async res => {
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Unable to load your medical history.');
+        return data;
+      })
       .then(data => {
         if (data.timeline) {
           setItems(data.timeline);
         }
         setLoading(false);
       })
-      .catch(() => setLoading(false));
-  }, [patientId]);
+      .catch(error => { if (!controller.signal.aborted) { setError(error.message); setLoading(false); } });
+    return () => controller.abort();
+  }, [patientId, attempt, getAuthHeaders]);
+
+  if (loading || error) return <PageState error={error} onRetry={() => setAttempt(value => value + 1)} title="Loading your medical history" />;
 
   const categories = ['All', 'Consultations', 'Medications', 'Allergies', 'Lab Reports'];
 

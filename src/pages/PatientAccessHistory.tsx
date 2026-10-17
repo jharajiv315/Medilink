@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext.tsx';
+import { PageState } from '../components/ui/PageState.tsx';
 import type { AuditEvent } from '../types/medilink.ts';
 
 interface PatientAccessHistoryProps {
@@ -11,24 +12,33 @@ export const PatientAccessHistory: React.FC<PatientAccessHistoryProps> = ({ onNa
   const [logs, setLogs] = useState<AuditEvent[]>([]);
   const [filterAction, setFilterAction] = useState('ALL');
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   const loadAuditLogs = () => {
+    setLoading(true);
+    setError('');
     fetch('/api/audit', {
       headers: getAuthHeaders()
     })
-      .then(res => res.json())
+      .then(async res => {
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Unable to load access history.');
+        return data;
+      })
       .then(data => {
         if (data.logs) {
           setLogs(data.logs);
         }
         setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch(error => { setError(error.message); setLoading(false); });
   };
 
   useEffect(() => {
     loadAuditLogs();
   }, []);
+
+  if (loading || error) return <PageState error={error} onRetry={loadAuditLogs} title="Loading your access history" />;
 
   const filteredLogs = logs.filter(log => {
     if (filterAction === 'ALL') return true;

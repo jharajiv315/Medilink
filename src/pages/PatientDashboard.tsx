@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext.tsx';
+import { PageState } from '../components/ui/PageState.tsx';
 import type { Patient } from '../types/medilink.ts';
 
 interface PatientDashboardProps {
@@ -27,18 +28,30 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({ onNavigate }
     recentEvents?: Array<{ id: string; title: string; description: string; date: string; source: string; category: string; hash?: string }>;
   }>({});
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
+    const controller = new AbortController();
+    setLoading(true);
+    setError('');
     fetch(`/api/patients/${patientId}/summary`, {
-      headers: getAuthHeaders()
+      headers: getAuthHeaders(), signal: controller.signal
     })
-      .then(res => res.json())
+      .then(async res => {
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Unable to load your overview.');
+        return data;
+      })
       .then(resData => {
         setData(resData);
         setLoading(false);
       })
-      .catch(() => setLoading(false));
-  }, [patientId]);
+      .catch(error => { if (!controller.signal.aborted) { setError(error.message); setLoading(false); } });
+    return () => controller.abort();
+  }, [patientId, attempt, getAuthHeaders]);
+
+  if (loading || error) return <PageState error={error} onRetry={() => setAttempt(value => value + 1)} title="Loading your health overview" />;
 
   const metrics = data.metrics || {
     connectedHealthSystems: 0,

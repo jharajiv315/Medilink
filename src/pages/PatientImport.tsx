@@ -149,7 +149,7 @@ export const PatientImport: React.FC<PatientImportProps> = ({ onNavigate }) => {
         })
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'The record could not be imported.');
+      if (!res.ok) throw new Error(data.message || data.error || 'The record could not be imported.');
       setIngestSuccess(data);
     } catch (error) {
       setIngestError(error instanceof Error ? error.message : 'Unable to connect. Please try again.');
@@ -236,6 +236,7 @@ export const PatientImport: React.FC<PatientImportProps> = ({ onNavigate }) => {
             </label>
             <input
               type="text"
+              aria-label="Source healthcare facility"
               value={sourceOrg}
               onChange={e => setSourceOrg(e.target.value)}
               required
@@ -249,6 +250,7 @@ export const PatientImport: React.FC<PatientImportProps> = ({ onNavigate }) => {
               Clinical Document Type
             </label>
             <select
+              aria-label="Clinical document type"
               value={docCategory}
               onChange={e => setDocCategory(e.target.value as any)}
               className="w-full h-11 px-3.5 bg-[#FFFFFF] border border-[#DFE5D8] rounded-xl text-[14px] text-[#0B0808] focus:outline-none focus:border-[#33650E]"
@@ -257,6 +259,7 @@ export const PatientImport: React.FC<PatientImportProps> = ({ onNavigate }) => {
               <option value="discharge_summary">Hospital Discharge Summary</option>
               <option value="lab_report">Laboratory &amp; Pathology Panel</option>
               <option value="prescription_order">Medication Order / Reconciliation</option>
+              <option value="allergy_challenge">Allergy Challenge Report</option>
             </select>
           </div>
 
@@ -267,6 +270,8 @@ export const PatientImport: React.FC<PatientImportProps> = ({ onNavigate }) => {
             <input
               type="text"
               value={docTitle}
+              aria-label="Document title"
+              maxLength={500}
               onChange={e => setDocTitle(e.target.value)}
               required
               className="w-full h-11 px-3.5 bg-[#FFFFFF] border border-[#DFE5D8] rounded-xl text-[14px] text-[#0B0808] focus:outline-none focus:border-[#33650E]"
@@ -279,6 +284,7 @@ export const PatientImport: React.FC<PatientImportProps> = ({ onNavigate }) => {
             </label>
             <input
               type="date"
+              aria-label="Clinical date"
               value={clinicalDate}
               onChange={e => setClinicalDate(e.target.value)}
               required
@@ -299,6 +305,7 @@ export const PatientImport: React.FC<PatientImportProps> = ({ onNavigate }) => {
             <input
               type="text"
               value={fileName}
+              aria-label="File reference"
               onChange={e => setFileName(e.target.value)}
               className="bg-transparent border-none text-[13px] font-mono text-[#0B0808] flex-1 focus:outline-none"
             />
@@ -319,6 +326,8 @@ export const PatientImport: React.FC<PatientImportProps> = ({ onNavigate }) => {
             </span>
           </div>
           <textarea
+            aria-label="Clinical text"
+            maxLength={100000}
             rows={5}
             value={rawText}
             onChange={e => setRawText(e.target.value)}

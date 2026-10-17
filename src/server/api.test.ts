@@ -48,6 +48,41 @@ test('API preserves role boundaries and scoped clinician counts', async () => {
       for (const conflict of handoff.conflicts) if (conflict.status !== 'clinician_reconciled') unresolved.add(conflict.id);
     }
     assert.equal(dashboard.unresolvedDiscrepanciesCount, unresolved.size);
+    const post = (route: string, cookie: string, data: unknown) => fetch(`${base}${route}`, { method: 'POST', headers: { Cookie: cookie, 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+    const requestBody = { patientCode: 'DEMO-P001', purpose: 'Isolated consent workflow verification', requestedCategories: ['Allergies', 'Medications'], durationDays: 7 };
+    assert.equal((await post('/api/clinic/requests', doctorCookie, { ...requestBody, requestedCategories: [] })).status, 400);
+    const request = await post('/api/clinic/requests', doctorCookie, requestBody);
+    assert.equal(request.status, 200);
+    const { grant } = await request.json();
+    const consentRoute = `/api/patients/DEMO-P001/consents/${grant.id}`;
+    assert.equal((await fetch(`${base}/api/clinic/handoff/${grant.id}`, { headers })).status, 403);
+    assert.equal((await post(`${consentRoute}/approve`, patientCookie, { approvedCategories: ['Behavioral Health'], durationDays: 7 })).status, 400);
+    assert.equal((await post(`${consentRoute}/approve`, patientCookie, { approvedCategories: ['Allergies'], durationDays: -1 })).status, 400);
+    const approval = { approvedCategories: ['Allergies'], durationDays: 7 };
+    assert.equal((await post(`${consentRoute}/approve`, patientCookie, approval)).status, 200);
+    assert.equal((await post(`${consentRoute}/approve`, patientCookie, approval)).status, 409);
+    const handoff = await (await fetch(`${base}/api/clinic/handoff/${grant.id}`, { headers })).json();
+    assert(handoff.facts.every((fact: { category: string }) => fact.category === 'Allergies'));
+    const conflict = handoff.conflicts.find((item: { status: string }) => item.status !== 'clinician_reconciled');
+    if (conflict) {
+      const route = `/api/clinic/handoff/${grant.id}/reconcile`;
+      assert.equal((await post(route, doctorCookie, { conflictId: conflict.id })).status, 400);
+      const review = { conflictId: conflict.id, clinicalResolution: 'Reviewed both source records; further evaluation documented', rationale: 'Isolated workflow test, not a clinical treatment recommendation.' };
+      assert.equal((await post(route, doctorCookie, review)).status, 200);
+      assert.equal((await post(route, doctorCookie, review)).status, 409);
+      const updated = await (await fetch(`${base}/api/clinic/handoff/${grant.id}`, { headers })).json();
+      assert.equal(updated.conflicts.find((item: { id: string }) => item.id === conflict.id).clinicianReview.reviewerName, 'Dr. Marcus Vance');
+    }
+    assert.equal((await post(`${consentRoute}/revoke`, patientCookie, { reason: 'Workflow test complete' })).status, 200);
+    assert.equal((await fetch(`${base}/api/clinic/handoff/${grant.id}`, { headers })).status, 403);
+    assert.equal((await post(`${consentRoute}/approve`, patientCookie, approval)).status, 409);
+    const importRoute = '/api/patients/DEMO-P001/ingest';
+    assert.equal((await post(importRoute, patientCookie, {})).status, 400);
+    const importedRecord = { title: 'Isolated import verification', rawText: 'Synthetic encounter for import workflow verification.', documentType: 'specialty_consult', clinicalDate: '2026-10-17', extractedItems: [] };
+    assert.equal((await post(importRoute, patientCookie, importedRecord)).status, 200);
+    assert.equal((await post(importRoute, patientCookie, importedRecord)).status, 409);
+    const timeline = await (await fetch(`${base}/api/patients/DEMO-P001/timeline`, { headers: { Cookie: patientCookie } })).json();
+    assert(timeline.timeline.some((item: { title: string }) => item.title === importedRecord.title));
   } finally {
     if (server) await new Promise<void>((resolve, reject) => server!.close(error => error ? reject(error) : resolve()));
     for (const key of keys) {

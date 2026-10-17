@@ -109,7 +109,7 @@ export const Modal: React.FC<ModalProps> = ({
           </div>
 
           {/* Body */}
-          <div className="font-[\x27DM_Sans\x27]">{children}</div>
+          <div className="font-body">{children}</div>
         </div>
       </div>
     </div>

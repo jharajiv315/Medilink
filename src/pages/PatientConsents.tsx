@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext.tsx';
+import { Modal } from '../components/ui/Modal.tsx';
 import type { AccessGrant, AccessCategory } from '../types/medilink.ts';
 
 interface PatientConsentsProps {
@@ -19,6 +20,9 @@ export const PatientConsents: React.FC<PatientConsentsProps> = ({ onNavigate }) 
   const [durationMinutes, setDurationMinutes] = useState<number | null>(null);
   const [qrGrant, setQrGrant] = useState<AccessGrant | null>(null);
   const [revokingGrantId, setRevokingGrantId] = useState<string | null>(null);
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   // Prevent background scrolling and viewport jitter when any modal is open
   useEffect(() => {
@@ -41,17 +45,22 @@ export const PatientConsents: React.FC<PatientConsentsProps> = ({ onNavigate }) 
   ];
 
   const loadGrants = () => {
+    setError('');
     fetch(`/api/patients/${patientId}/consents`, {
       headers: getAuthHeaders()
     })
-      .then(res => res.json())
+      .then(async res => {
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Unable to load sharing permissions.');
+        return data;
+      })
       .then(data => {
         if (data.grants) {
           setGrants(data.grants);
         }
         setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch(error => { setError(error.message || 'Unable to connect. Please try again.'); setLoading(false); });
   };
 
   useEffect(() => {
@@ -59,6 +68,9 @@ export const PatientConsents: React.FC<PatientConsentsProps> = ({ onNavigate }) 
   }, [patientId]);
 
   const handleRevoke = async (grantId: string) => {
+    if (saving) return;
+    setSaving(true);
+    setError('');
     try {
       const res = await fetch(`/api/patients/${patientId}/consents/${grantId}/revoke`, {
         method: 'POST',
@@ -68,14 +80,21 @@ export const PatientConsents: React.FC<PatientConsentsProps> = ({ onNavigate }) 
       if (res.ok) {
         setRevokingGrantId(null);
         loadGrants();
+      } else {
+        const data = await res.json();
+        throw new Error(data.error || 'Access could not be revoked. Please try again.');
       }
-    } catch {
-      alert('Error revoking consent.');
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Unable to connect. Please try again.');
+    } finally {
+      setSaving(false);
     }
   };
 
   const handleApprove = async () => {
-    if (!modalGrant) return;
+    if (!modalGrant || saving) return;
+    setSaving(true);
+    setError('');
     try {
       const res = await fetch(`/api/patients/${patientId}/consents/${modalGrant.id}/approve`, {
         method: 'POST',
@@ -94,9 +113,14 @@ export const PatientConsents: React.FC<PatientConsentsProps> = ({ onNavigate }) 
         if (approvedData.grant) {
           setQrGrant(approvedData.grant);
         }
+      } else {
+        const data = await res.json();
+        throw new Error(data.error || 'Access could not be approved. Please try again.');
       }
-    } catch {
-      alert('Error approving grant.');
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Unable to connect. Please try again.');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -107,6 +131,7 @@ export const PatientConsents: React.FC<PatientConsentsProps> = ({ onNavigate }) 
 
   return (
     <div className="max-w-6xl mx-auto px-6 lg:px-12 py-8 space-y-8">
+      {error && !modalGrant && !revokingGrantId && <div role="alert" className="rounded-2xl border border-[#A33837]/20 bg-[#FFF0EF] p-4 text-sm text-[#A33837]">{error} <button onClick={loadGrants} className="ml-2 font-semibold underline">Reload</button></div>}
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-[#DFE5D8]">
         <div>
@@ -124,11 +149,11 @@ export const PatientConsents: React.FC<PatientConsentsProps> = ({ onNavigate }) 
         </div>
 
         <button
-          onClick={() => onNavigate('/clinic/access-requests')}
+          onClick={loadGrants}
           className="inline-flex items-center gap-2 bg-[#F2F7EB] hover:bg-[#ebefe4] text-[#33650E] border border-[#DFE5D8] text-[14px] font-semibold px-4 py-2.5 rounded-xl transition-all"
         >
           <span className="material-symbols-outlined text-[18px]">add_link</span>
-          <span>Simulate Inbound Doctor Request</span>
+          <span>Refresh requests</span>
         </button>
       </div>
 
@@ -264,13 +289,15 @@ export const PatientConsents: React.FC<PatientConsentsProps> = ({ onNavigate }) 
                     <span className="font-mono">Token ID: {grant.id}</span>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     {isPending && (
                       <button
                         onClick={() => {
                           setModalGrant(grant);
                           setSelectedCategories(grant.requestedCategories);
                           setDurationDays(grant.accessDurationDays || 30);
+                          setDurationMinutes(null);
+                          setError('');
                         }}
                         className="bg-[#33650E] hover:bg-[#28510B] text-[#FFFFFF] text-[13px] font-semibold px-4 py-2 rounded-xl transition-all shadow-sm"
                       >
@@ -286,12 +313,6 @@ export const PatientConsents: React.FC<PatientConsentsProps> = ({ onNavigate }) 
                         >
                           <span className="material-symbols-outlined text-[16px]">qr_code_2</span>
                           <span>Show QR Code</span>
-                        </button>
-                        <button
-                          onClick={() => onNavigate(`/clinic/handoff/${grant.id}`)}
-                          className="bg-[#F2F7EB] hover:bg-[#ebefe4] text-[#33650E] border border-[#DFE5D8] text-[13px] font-semibold px-3.5 py-2 rounded-xl transition-colors"
-                        >
-                          Preview Doctor View
                         </button>
                         <button
                           onClick={() => setRevokingGrantId(grant.id)}
@@ -311,8 +332,9 @@ export const PatientConsents: React.FC<PatientConsentsProps> = ({ onNavigate }) 
 
       {/* Revocation Confirmation Dialog */}
       {revokingGrantId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60">
-          <div className="bg-[#FFFFFF] w-full max-w-md rounded-3xl border-2 border-[#A33837] p-6 shadow-2xl relative space-y-4 text-center">
+        <Modal isOpen onClose={() => { if (!saving) setRevokingGrantId(null); }} title="Revoke access" maxWidth="sm">
+          <div className="space-y-4 text-center">
+            {error && <p role="alert" className="rounded-xl bg-[#FFF0EF] p-3 text-sm text-[#A33837]">{error}</p>}
             <div className="w-12 h-12 rounded-full bg-[#FFF0EF] text-[#A33837] flex items-center justify-center mx-auto">
               <span className="material-symbols-outlined text-[28px]">gpp_bad</span>
             </div>
@@ -320,8 +342,7 @@ export const PatientConsents: React.FC<PatientConsentsProps> = ({ onNavigate }) 
               Revoke Clinical Access Immediately?
             </h3>
             <p className="text-[13px] text-[#42493b] leading-relaxed">
-              This action will instantly invalidate all active cryptographic access tokens for this clinic.
-              Any subsequent queries from Dr. Marcus Vance will be strictly denied (403 Forbidden).
+              The clinician will no longer be able to open records through this sharing permission.
             </p>
             <div className="pt-3 flex justify-center gap-3">
               <button
@@ -332,34 +353,25 @@ export const PatientConsents: React.FC<PatientConsentsProps> = ({ onNavigate }) 
               </button>
               <button
                 onClick={() => handleRevoke(revokingGrantId)}
+                disabled={saving}
                 className="bg-[#A33837] hover:bg-[#861818] text-[#FFFFFF] text-[13px] font-semibold px-5 py-2.5 rounded-xl shadow-md"
               >
-                Confirm Instant Revocation
+                {saving ? 'Revoking…' : 'Confirm revocation'}
               </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* Approve Modal with Granular Scope Selection */}
       {modalGrant && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60">
-          <div className="bg-[#FFFFFF] w-full max-w-lg rounded-3xl border border-[#DFE5D8] p-6 sm:p-8 shadow-2xl relative space-y-5">
-            <div className="flex items-start justify-between pb-3 border-b border-[#DFE5D8]">
-              <div>
-                <h3 className="font-['Plus_Jakarta_Sans'] text-[18px] font-bold text-[#0B0808]">
-                  Authorize Clinical Access Grant
-                </h3>
-                <p className="text-[12px] text-[#667065]">
+        <Modal isOpen onClose={() => { if (!saving) setModalGrant(null); }} title="Review sharing request" maxWidth="md">
+          <div className="space-y-5">
+            {error && <p role="alert" className="rounded-xl bg-[#FFF0EF] p-3 text-sm text-[#A33837]">{error}</p>}
+            <div className="rounded-xl bg-[#F2F7EB] p-4">
+                <p className="text-[13px] font-semibold text-[#33650E]">
                   {modalGrant.requesterName} • {modalGrant.requestingOrgName}
                 </p>
-              </div>
-              <button
-                onClick={() => setModalGrant(null)}
-                className="p-1 rounded-lg text-[#72796a] hover:bg-[#F4F5F1]"
-              >
-                <span className="material-symbols-outlined text-[20px]">close</span>
-              </button>
             </div>
 
             <p className="text-[13px] text-[#42493b]">
@@ -372,7 +384,7 @@ export const PatientConsents: React.FC<PatientConsentsProps> = ({ onNavigate }) 
                 Select Permitted Clinical Categories:
               </span>
               <div className="grid grid-cols-2 gap-2">
-                {allAvailableCategories.map(cat => {
+                {allAvailableCategories.filter(cat => modalGrant.requestedCategories.includes(cat)).map(cat => {
                   const isChecked = selectedCategories.includes(cat);
                   return (
                     <label
@@ -460,6 +472,7 @@ export const PatientConsents: React.FC<PatientConsentsProps> = ({ onNavigate }) 
                 <>
                   <input
                     type="range"
+                    aria-label="Access duration in days"
                     min="1"
                     max="90"
                     value={durationDays}
@@ -486,20 +499,20 @@ export const PatientConsents: React.FC<PatientConsentsProps> = ({ onNavigate }) 
               <button
                 type="button"
                 onClick={handleApprove}
-                disabled={selectedCategories.length === 0}
+                disabled={saving || selectedCategories.length === 0}
                 className="bg-[#33650E] hover:bg-[#28510B] text-[#FFFFFF] text-[13px] font-semibold px-5 py-2.5 rounded-xl transition-all shadow-md"
               >
-                Sign &amp; Grant Access
+                {saving ? 'Granting access…' : 'Sign & Grant Access'}
               </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* QR Code Presentation Modal for 2-Device Demo */}
       {qrGrant && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60">
-          <div className="bg-[#FFFFFF] w-full max-w-md rounded-3xl border border-[#DFE5D8] p-6 sm:p-8 shadow-2xl relative space-y-5 text-center">
+        <Modal isOpen onClose={() => setQrGrant(null)} title="Share handoff link" maxWidth="md">
+          <div className="space-y-5 text-center">
             <div className="flex items-center justify-between pb-3 border-b border-[#DFE5D8]">
               <div className="text-left">
                 <span className="text-[11px] font-bold text-[#33650E] uppercase bg-[#F2F7EB] px-2.5 py-0.5 rounded-full border border-[#DFE5D8]">
@@ -511,6 +524,7 @@ export const PatientConsents: React.FC<PatientConsentsProps> = ({ onNavigate }) 
               </div>
               <button
                 onClick={() => setQrGrant(null)}
+                aria-label="Close handoff link"
                 className="p-1 rounded-lg text-[#72796a] hover:bg-[#F4F5F1]"
               >
                 <span className="material-symbols-outlined text-[20px]">close</span>
@@ -518,7 +532,7 @@ export const PatientConsents: React.FC<PatientConsentsProps> = ({ onNavigate }) 
             </div>
 
             <p className="text-[13px] text-[#42493b] text-left">
-              Point the doctor's phone or laptop camera at this QR code to open the scoped clinical record.
+              The assigned doctor can scan this code and sign in to view approved records.
             </p>
 
             {/* QR Code Graphic using dynamic SVG API */}
@@ -544,10 +558,15 @@ export const PatientConsents: React.FC<PatientConsentsProps> = ({ onNavigate }) 
 
             <div className="flex flex-col sm:flex-row gap-2 pt-2">
               <button
-                onClick={() => onNavigate(`/clinic/handoff/${qrGrant.id}`)}
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(`${window.location.origin}/clinic/handoff/${qrGrant.id}`);
+                    setCopied(true);
+                  } catch { setCopied(false); }
+                }}
                 className="flex-1 bg-[#33650E] hover:bg-[#28510B] text-white text-[13px] font-semibold py-2.5 px-4 rounded-xl shadow-md transition-all"
               >
-                Open Handoff Link Directly
+                {copied ? 'Link copied' : 'Copy doctor link'}
               </button>
               <button
                 onClick={() => setQrGrant(null)}
@@ -556,8 +575,9 @@ export const PatientConsents: React.FC<PatientConsentsProps> = ({ onNavigate }) 
                 Done
               </button>
             </div>
+            <input readOnly aria-label="Doctor handoff link" value={`${window.location.origin}/clinic/handoff/${qrGrant.id}`} onFocus={event => event.currentTarget.select()} className="w-full rounded-xl border border-[#DFE5D8] p-3 text-xs text-[#42493b]" />
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

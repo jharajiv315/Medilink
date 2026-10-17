@@ -27,12 +27,7 @@ export const ClinicHandoff: React.FC<ClinicHandoffProps> = ({ grantId, onNavigat
   const [saveError, setSaveError] = useState('');
 
   // Clinician reconciliation form state
-  const [resolutionChoice, setResolutionChoice] = useState(
-    'De-labeled Penicillin Allergy (Safe for Cephalosporin & Penicillin administration)'
-  );
-  const [clinicianNote, setClinicianNote] = useState(
-    'Patient completed formal skin prick and 250mg oral amoxicillin challenge at Allergy & Asthma Center with zero reaction. Verified non-IgE mediated childhood history. De-labeled for future prescribing.'
-  );
+  const [drafts, setDrafts] = useState<Record<string, { resolution: string; note: string }>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [reconciledSuccess, setReconciledSuccess] = useState(false);
 
@@ -66,6 +61,8 @@ export const ClinicHandoff: React.FC<ClinicHandoffProps> = ({ grantId, onNavigat
   }, [loadHandoffData]);
 
   const handleReconcile = async (conflictId: string) => {
+    const draft = drafts[conflictId];
+    if (isSubmitting || !draft?.resolution.trim() || !draft.note.trim()) return;
     setIsSubmitting(true);
     setSaveError('');
     try {
@@ -74,8 +71,8 @@ export const ClinicHandoff: React.FC<ClinicHandoffProps> = ({ grantId, onNavigat
         headers: getAuthHeaders(),
         body: JSON.stringify({
           conflictId,
-          clinicalResolution: resolutionChoice,
-          rationale: clinicianNote
+          clinicalResolution: draft.resolution.trim(),
+          rationale: draft.note.trim()
         })
       });
 
@@ -317,6 +314,8 @@ export const ClinicHandoff: React.FC<ClinicHandoffProps> = ({ grantId, onNavigat
         <div className="lg:col-span-6 space-y-6">
           {conflicts.map(conflict => {
             const isReconciled = conflict.status === 'clinician_reconciled';
+            const draft = drafts[conflict.id] || { resolution: '', note: '' };
+            const updateDraft = (field: 'resolution' | 'note', value: string) => setDrafts(previous => ({ ...previous, [conflict.id]: { ...draft, [field]: value } }));
 
             return (
               <div
@@ -360,7 +359,7 @@ export const ClinicHandoff: React.FC<ClinicHandoffProps> = ({ grantId, onNavigat
                           {conflict.factA.sourceOrgName}
                         </span>
                         <span className="text-[10px] font-bold text-[#A33837] bg-[#FFF0EF] px-2 py-0.5 rounded-full">
-                          Allergy Listed
+                          Source A
                         </span>
                       </div>
                       <p className="font-bold text-[#0B0808] text-[13px]">
@@ -371,7 +370,7 @@ export const ClinicHandoff: React.FC<ClinicHandoffProps> = ({ grantId, onNavigat
                       </p>
                     </div>
                     <p className="text-[10px] text-[#667065] mt-3 pt-2 border-t border-[#DFE5D8] font-mono">
-                      Ref: Discharge_Summary_Oct21.pdf
+                      Ref: {conflict.factA.documentTitle}
                     </p>
                   </div>
 
@@ -383,7 +382,7 @@ export const ClinicHandoff: React.FC<ClinicHandoffProps> = ({ grantId, onNavigat
                           {conflict.factB.sourceOrgName}
                         </span>
                         <span className="text-[10px] font-bold text-[#33650E] bg-[#FFFFFF] px-2 py-0.5 rounded-full border border-[#DFE5D8]">
-                          Test Negative
+                          Source B
                         </span>
                       </div>
                       <p className="font-bold text-[#0B0808] text-[13px]">
@@ -394,7 +393,7 @@ export const ClinicHandoff: React.FC<ClinicHandoffProps> = ({ grantId, onNavigat
                       </p>
                     </div>
                     <p className="text-[10px] text-[#667065] mt-3 pt-2 border-t border-[#DFE5D8] font-mono">
-                      Ref: Lab_Report_SkinPrick_2023.pdf
+                      Ref: {conflict.factB.documentTitle}
                     </p>
                   </div>
                 </div>
@@ -403,7 +402,7 @@ export const ClinicHandoff: React.FC<ClinicHandoffProps> = ({ grantId, onNavigat
                 <div className="p-3.5 bg-[#F4F5F1] rounded-xl border border-[#DFE5D8] flex items-center gap-2.5 text-[12px] text-[#0B0808]">
                   <CircleCheck className="w-[18px] h-[18px] text-[#33650E] shrink-0" />
                   <span>
-                    <strong>Patient Affirmed:</strong> "No symptoms upon amoxicillin re-challenge."
+                    <strong>Patient note:</strong> {conflict.patientAffirmation?.statement || 'No patient statement has been recorded.'}
                   </span>
                 </div>
 
@@ -418,22 +417,15 @@ export const ClinicHandoff: React.FC<ClinicHandoffProps> = ({ grantId, onNavigat
                     <label className="block text-[12px] font-bold text-[#0B0808] mb-1">
                       Clinical Determination:
                     </label>
-                    <select
-                      value={resolutionChoice}
-                      onChange={e => setResolutionChoice(e.target.value)}
+                    <input
+                      aria-label={`Clinical determination for ${conflict.title}`}
+                      placeholder="Enter your determination after reviewing both sources"
+                      maxLength={2000}
+                      value={isReconciled ? conflict.clinicianReview?.clinicalResolution || '' : draft.resolution}
+                      onChange={e => updateDraft('resolution', e.target.value)}
                       disabled={isReconciled}
                       className="w-full px-3 py-2 bg-[#FFFFFF] border border-[#DFE5D8] rounded-xl text-[13px] text-[#0B0808] focus:outline-none focus:border-[#33650E]"
-                    >
-                      <option value="De-labeled Penicillin Allergy (Safe for Cephalosporin & Penicillin administration)">
-                        De-labeled Penicillin Allergy (Safe for Cephalosporin &amp; Penicillin)
-                      </option>
-                      <option value="Confirmed Sensitivity (Require Alternative Antimicrobial)">
-                        Confirmed Sensitivity (Require Alternative Antimicrobial)
-                      </option>
-                      <option value="Temporary Avoidance Pending Follow-up Immunologist Repeat Challenge">
-                        Temporary Avoidance Pending Follow-up Immunologist Challenge
-                      </option>
-                    </select>
+                    />
                   </div>
 
                   <div>
@@ -441,17 +433,20 @@ export const ClinicHandoff: React.FC<ClinicHandoffProps> = ({ grantId, onNavigat
                       Attending Physician Rationale &amp; Documentation Note:
                     </label>
                     <textarea
+                      aria-label={`Rationale for ${conflict.title}`}
+                      placeholder="Document the evidence supporting your determination"
+                      maxLength={10000}
                       rows={3}
-                      value={clinicianNote}
-                      onChange={e => setClinicianNote(e.target.value)}
+                      value={isReconciled ? conflict.clinicianReview?.rationale || '' : draft.note}
+                      onChange={e => updateDraft('note', e.target.value)}
                       disabled={isReconciled}
                       className="w-full p-3 bg-[#FFFFFF] border border-[#DFE5D8] rounded-xl text-[13px] text-[#0B0808] focus:outline-none focus:border-[#33650E]"
                     ></textarea>
                   </div>
 
-                  <div className="flex items-center justify-between pt-2">
+                  <div className="flex flex-wrap gap-3 items-center justify-between pt-2">
                     <span className="text-[11px] text-[#667065]">
-                      Reviewer: <strong>Dr. Marcus Vance, MD</strong> (Sutter Health)
+                      Reviewer: <strong>{conflict.clinicianReview?.reviewerName || currentUser.name}</strong> ({conflict.clinicianReview?.reviewerOrg || currentUser.organization})
                     </span>
 
                     {isReconciled ? (
@@ -462,7 +457,7 @@ export const ClinicHandoff: React.FC<ClinicHandoffProps> = ({ grantId, onNavigat
                     ) : (
                       <button
                         onClick={() => handleReconcile(conflict.id)}
-                        disabled={isSubmitting}
+                        disabled={isSubmitting || !draft.resolution.trim() || !draft.note.trim()}
                         className="bg-[#33650E] hover:bg-[#28510B] text-[#FFFFFF] text-[13px] font-semibold px-5 py-2.5 rounded-xl transition-all shadow-md active:scale-[0.98]"
                       >
                         {isSubmitting ? 'Signing...' : 'Sign & Mark Reconciled'}
@@ -471,11 +466,11 @@ export const ClinicHandoff: React.FC<ClinicHandoffProps> = ({ grantId, onNavigat
                   </div>
                 </div>
 
-                {reconciledSuccess && (
+                {reconciledSuccess && isReconciled && (
                   <div className="p-4 bg-[#F2F7EB] rounded-xl border border-[#78A541] text-[13px] text-[#33650E] font-medium flex items-center gap-2">
                     <BadgeCheck className="w-[18px] h-[18px] shrink-0" />
                     <span>
-                      Reconciliation signed by Dr. Marcus Vance. Updated record has been transmitted
+                      Reconciliation signed by {conflict.clinicianReview?.reviewerName}. Updated record has been added
                       to patient's timeline and audit ledger.
                     </span>
                   </div>

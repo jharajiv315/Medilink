@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
+import { useAuth } from '../context/AuthContext.tsx';
 
 interface LandingPageProps {
   onNavigate: (path: string) => void;
 }
 
 export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
+  const { currentUser, isAuthenticated } = useAuth();
+  const openPatientPage = (path: string) => onNavigate(isAuthenticated && currentUser.role === 'clinician' ? '/clinic/dashboard' : path);
   const [reconciledInHero, setReconciledInHero] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
@@ -57,7 +60,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
             {/* CTA Action Buttons */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 w-full sm:w-auto pt-2">
               <button
-                onClick={() => onNavigate('/patient/dashboard')}
+                onClick={() => openPatientPage('/patient/dashboard')}
                 className="inline-flex items-center justify-center gap-2 bg-[#33650E] hover:bg-[#28510B] text-[#FFFFFF] font-['DM_Sans'] text-[15px] font-semibold px-7 py-3.5 rounded-xl shadow-md transition-all duration-200 active:scale-[0.98]"
               >
                 <span>Connect My Records</span>
@@ -233,7 +236,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
           {/* Card 1: Unified Medical History */}
           <div
-            onClick={() => onNavigate('/patient/history')}
+            onClick={() => openPatientPage('/patient/history')}
             className="cursor-pointer bg-[#FFFFFF] p-8 rounded-2xl border border-[#DFE5D8] shadow-sm flex flex-col justify-between hover:shadow-md transition-all group hover:border-[#78A541]"
           >
             <div>
@@ -256,7 +259,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
 
           {/* Card 2: Conflict Detection */}
           <div
-            onClick={() => onNavigate('/patient/conflicts')}
+            onClick={() => openPatientPage('/patient/conflicts')}
             className="cursor-pointer bg-[#FFFFFF] p-8 rounded-2xl border border-[#DFE5D8] shadow-sm flex flex-col justify-between hover:shadow-md transition-all group hover:border-[#78A541]"
           >
             <div>
@@ -279,7 +282,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
 
           {/* Card 3: Closed-Loop Handoffs */}
           <div
-            onClick={() => onNavigate('/clinic/handoff/grant-sutter-01')}
+            onClick={() => onNavigate('/clinic/dashboard')}
             className="cursor-pointer bg-[#FFFFFF] p-8 rounded-2xl border border-[#DFE5D8] shadow-sm flex flex-col justify-between hover:shadow-md transition-all group hover:border-[#78A541]"
           >
             <div>
@@ -307,7 +310,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Card 4: Secure Patient-Controlled Sharing */}
           <div
-            onClick={() => onNavigate('/patient/consents')}
+            onClick={() => openPatientPage('/patient/consents')}
             className="cursor-pointer bg-[#FFFFFF] p-8 rounded-2xl border border-[#DFE5D8] shadow-sm flex flex-col justify-between hover:shadow-md transition-all group hover:border-[#78A541]"
           >
             <div>
@@ -336,7 +339,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
 
           {/* Card 5: Transparent Access and Audit History */}
           <div
-            onClick={() => onNavigate('/patient/access-history')}
+            onClick={() => openPatientPage('/patient/access-history')}
             className="cursor-pointer bg-[#FFFFFF] p-8 rounded-2xl border border-[#DFE5D8] shadow-sm flex flex-col justify-between hover:shadow-md transition-all group hover:border-[#78A541]"
           >
             <div>
@@ -499,7 +502,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
 
                   {reconciledInHero ? (
                     <button
-                      onClick={() => onNavigate('/clinic/handoff/grant-sutter-01')}
+                      onClick={() => onNavigate('/clinic/dashboard')}
                       className="inline-flex items-center justify-center gap-1 bg-[#33650E] text-[#FFFFFF] text-[12px] px-4 py-2 rounded-lg font-bold shadow-sm"
                     >
                       <span>Open in Clinical Workspace</span>
@@ -634,7 +637,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
 
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
               <button
-                onClick={() => onNavigate('/patient/dashboard')}
+                onClick={() => openPatientPage('/patient/dashboard')}
                 className="inline-flex items-center justify-center gap-2 bg-[#33650E] hover:bg-[#28510B] text-[#FFFFFF] font-['DM_Sans'] text-[15px] font-semibold px-8 py-4 rounded-xl shadow-md transition-all duration-200 active:scale-[0.98]"
               >
                 <span>Start Connecting Your Health</span>
