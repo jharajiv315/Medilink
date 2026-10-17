@@ -8,6 +8,20 @@ MediLink brings medical history, documented discrepancies, and sharing permissio
 
 > MediLink is a demonstration application with synthetic clinical examples. It does not provide medical advice or establish HIPAA, SOC 2, or FHIR conformance certification.
 
+## Product snapshots
+
+The current interface uses MediLink’s botanical Bulbasaur theme: pale sage surfaces, forest-green navigation, rounded clinical cards, botanical accents, and responsive layouts. These snapshots are captured from the verified local build at the same responsive viewports used for the live workflow checks.
+
+| Patient dashboard | Clinical handoff |
+| --- | --- |
+| ![Patient dashboard desktop](docs/snapshots/patient-dashboard-desktop.png) | ![Clinical handoff desktop](docs/snapshots/clinical-handoff-desktop.png) |
+
+| Patient dashboard on mobile | Support assistant on mobile |
+| --- | --- |
+| ![Patient dashboard mobile](docs/snapshots/patient-dashboard-mobile.png) | ![MediLink support assistant](docs/snapshots/support-chat-mobile.png) |
+
+The [medical history mobile snapshot](docs/snapshots/medical-history-mobile.png) shows the responsive timeline, provider and record filters, provenance cards, and source fingerprints. The support assistant is a product-navigation helper: it does not access medical records or provide medical advice. It uses seeded MediLink guidance by default and can optionally call Gemini through the server when `GEMINI_API_KEY` is configured.
+
 ## Features
 
 ### Patient workspace
@@ -19,6 +33,7 @@ MediLink brings medical history, documented discrepancies, and sharing permissio
 - Approve requested record categories for a limited period or revoke access.
 - Share a handoff URL or display its QR code for the assigned clinician.
 - Review account-scoped access and consent audit events.
+- Ask the MediLink assistant for product navigation help from the floating **Ask MediLink** button.
 
 ### Clinical workspace
 
@@ -156,10 +171,12 @@ On Windows, use `npm.cmd` if PowerShell blocks `npm.ps1`.
 | `PORT` | Local server port; defaults to `3002`. |
 | `NODE_ENV` | Set to `production` when serving the built frontend locally. |
 | `DISABLE_HMR` | Set to `true` to disable development hot reload and file watching. |
+| `GEMINI_API_KEY` | Optional server-only Gemini key for assistant questions outside the built-in product guide. Never expose it as `VITE_GEMINI_API_KEY`. |
+| `GEMINI_CHAT_MODEL` | Optional Gemini model name; defaults to `gemini-2.5-flash`. |
 
 `DEMO_CLINICIAN_PASSWORD`, `DEMO_CLINICIAN_SESSION_SECRET`, and `DEMO_CLINICIAN_EXPIRES_AT` support a legacy temporary demonstration mode. They are not needed for normal Supabase-backed doctor sessions.
 
-The template also contains legacy `GEMINI_API_KEY` and `APP_URL` placeholders. Neither is required by the current core record-sharing and authentication flows.
+`GEMINI_API_KEY` is optional and is used only by `POST /api/chat` after the user explicitly enables AI responses in the assistant. The route has input limits, rate limiting, a product-only system instruction, and a seeded fallback response when Gemini is unavailable. Do not place patient medical details in chat.
 
 Keep populated environment files, database URLs, account passwords, and backups private. Never prefix a server secret with `VITE_`, because Vite exposes such variables to the browser.
 
@@ -185,6 +202,7 @@ Demo credentials are distributed privately and are not published in this reposit
 | `npm run build` | Build the frontend into `dist/`. |
 | `npm run start` | Start Express; use `NODE_ENV=production` to serve the built frontend. |
 | `npm run preview` | Preview the Vite build only; it does not start the Express API. |
+| `node --env-file=.env.supabase.local scripts/verify-live-demo.mjs <API_BASE_URL>` | Run the authenticated two-device workflow check against a designated environment. The full run includes real grant expiry and creates/removes only its own synthetic fixture records. |
 
 Run the standard checks before opening a pull request:
 
