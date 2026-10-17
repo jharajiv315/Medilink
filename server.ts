@@ -3,6 +3,7 @@ import express, { type Request, type Response } from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import crypto from 'crypto';
+import { chatHandler } from './src/server/chat.ts';
 import { getDb, resetDb, saveDb } from './src/server/mockDb.ts';
 import { databaseMiddleware } from './src/server/supabaseStore.ts';
 import { usesSupabase } from './src/server/requestStore.ts';
@@ -35,6 +36,8 @@ const app = express();
 const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3002;
 
 app.use(express.json());
+// Product support is independent of the medical database and session transactions.
+app.post('/api/chat', chatHandler);
 
 // Helper to log audit events
 function logAuditEvent(event: Omit<AuditEvent, 'id' | 'timestamp' | 'ipHash'>): AuditEvent {

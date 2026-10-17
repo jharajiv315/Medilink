@@ -16,6 +16,7 @@ import { ClinicAccessRequest } from './pages/ClinicAccessRequest.tsx';
 import { ClinicHandoff } from './pages/ClinicHandoff.tsx';
 import { Unauthorized } from './pages/Unauthorized.tsx';
 import { PortalLayout } from './components/layout/PortalLayout.tsx';
+import { ChatAssistant } from './components/ChatAssistant.tsx';
 
 function AppContent() {
   const [currentPath, setCurrentPath] = useState<string>(() => {
@@ -166,6 +167,7 @@ export default function App() {
   return (
     <AuthProvider>
       <AppContent />
+      <ChatAssistant />
     </AuthProvider>
   );
 }
