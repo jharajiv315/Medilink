@@ -4,6 +4,8 @@ MediLink keeps its existing patient and provisioned-doctor authentication and
 clinical authorization. Supabase Postgres replaces the local JSON file; this
 is not a migration to Supabase Auth. Existing password hashes remain valid.
 
+Production project: `wkuxhxyfycylmadcxgge` (MediLink, Mumbai / `ap-south-1`).
+
 ## Runtime
 
 Set the **server-only** `SUPABASE_DATABASE_URL` to the Supavisor transaction
@@ -12,6 +14,8 @@ key, database password, or connection URL belongs in a `VITE_` variable.
 The runtime role can only select/update `medilink.app_state`, protected by RLS.
 The schema is not exposed to the Supabase Data API. Public/anonymous Supabase
 clients have no clinical data access.
+TLS verifies the server certificate and hostname using Supabase's official
+public root CA in `src/server/supabaseTls.ts`.
 
 The API loads fresh state inside a transaction with a row lock. Each request
 uses AsyncLocalStorage to isolate its state. Changes commit before JSON or
@@ -30,12 +34,22 @@ clinical/identity entities and use per-record queries and transactions.
    `node scripts/prepare-supabase-import.mjs <absolute-private-directory> --include-stash`.
    The stash is read without applying or dropping it. Records are merged by ID;
    stashed values take precedence and registered users/credentials are retained.
-3. Insert the merged payload only if `app_state` is empty. Also retain it in
+3. Use `scripts/import-supabase.mjs <private-payload-path>` to insert the merged
+   payload only if `app_state` is empty. Temporarily grant INSERT and matching
+   RLS policies to the runtime role for the import, then immediately revoke
+   INSERT and drop those temporary policies. Also retain the import in
    `medilink.migration_backup`, inaccessible to the application role.
 4. Configure the runtime role's password outside migrations, test its limited
    privileges, then set the Vercel Production secret and deploy.
 5. Confirm `/api/health` reports `storage: "supabase"`, then verify login,
    refresh, registration, import, approvals, reconciliation and revocation.
+   `scripts/verify-supabase.mjs <api-url-a> <api-url-b>` verifies the workflow
+   against two server instances, then removes only the synthetic accounts and
+   clinical records it created. It preserves the resulting audit history.
+
+Supabase's security advisor reports an informational "RLS Enabled No Policy"
+notice for `migration_backup`. This is intentional: no application/client role
+has access to it. Do not add a public-access policy to silence the notice.
 
 The original JSON, original stash, merged import and SHA-256 manifest remain
 in the private backup directory. Do not commit them. A database owner can

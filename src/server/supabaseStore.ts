@@ -1,4 +1,5 @@
 import postgres from 'postgres';
+import { supabaseTls } from './supabaseTls.ts';
 import type { Request, Response, NextFunction } from 'express';
 import type { MediLinkDatabase } from './mockDb.ts';
 import { requestStore, usesSupabase, type RequestStore } from './requestStore.ts';
@@ -9,7 +10,7 @@ export function getSupabasePool() {
   const url = process.env.SUPABASE_DATABASE_URL;
   if (!url) throw new Error('Supabase database is not configured.');
   pool ??= postgres(url, {
-    ssl: { rejectUnauthorized: true },
+    ssl: supabaseTls,
     prepare: false, // Supavisor transaction pooling does not support prepared statements.
     max: 3,
     connect_timeout: 10,
