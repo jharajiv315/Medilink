@@ -13,6 +13,10 @@ MediLink brings medical history, documented discrepancies, and sharing permissio
 
 **[Open the application](https://medilink-wheat-two.vercel.app/)** · [Supabase operations guide](docs/SUPABASE.md) · [Report an issue](https://github.com/jharajiv315/Medilink/issues)
 
+## Contents
+
+[About](#about) · [Hackathon](#hackathon-submission) · [Team](#team) · [Screenshots](#product-snapshots) · [Features](#features) · [Setup](#local-setup) · [Architecture](#source-architecture) · [Testing](#commands-and-verification) · [License](#license)
+
 > MediLink is a demonstration application with synthetic clinical examples. It does not provide medical advice or establish HIPAA, SOC 2, or FHIR conformance certification.
 
 ## Hackathon submission
@@ -36,13 +40,19 @@ Contributions may overlap across the implementation. The table identifies the te
 
 The current interface uses MediLink’s botanical Bulbasaur theme: pale sage surfaces, forest-green navigation, rounded clinical cards, botanical accents, and responsive layouts. These snapshots are captured from the verified local build at the same responsive viewports used for the live workflow checks.
 
-| Patient dashboard | Clinical handoff |
-| --- | --- |
-| ![Patient dashboard desktop](docs/snapshots/patient-dashboard-desktop.png) | ![Clinical handoff desktop](docs/snapshots/clinical-handoff-desktop.png) |
+<table>
+<tr>
+<td align="center"><strong>Patient dashboard</strong><br><a href="docs/snapshots/patient-dashboard-desktop.png"><img src="docs/snapshots/patient-dashboard-desktop.png" width="360" alt="Patient dashboard desktop"></a></td>
+<td align="center"><strong>Clinical handoff</strong><br><a href="docs/snapshots/clinical-handoff-desktop.png"><img src="docs/snapshots/clinical-handoff-desktop.png" width="360" alt="Clinical handoff desktop"></a></td>
+</tr>
+</table>
 
-| Patient dashboard on mobile | Support assistant on mobile |
-| --- | --- |
-| ![Patient dashboard mobile](docs/snapshots/patient-dashboard-mobile.png) | ![MediLink support assistant](docs/snapshots/support-chat-mobile.png) |
+<table>
+<tr>
+<td align="center"><strong>Patient dashboard on mobile</strong><br><a href="docs/snapshots/patient-dashboard-mobile.png"><img src="docs/snapshots/patient-dashboard-mobile.png" width="220" alt="Patient dashboard mobile"></a></td>
+<td align="center"><strong>Support assistant on mobile</strong><br><a href="docs/snapshots/support-chat-mobile.png"><img src="docs/snapshots/support-chat-mobile.png" width="220" alt="MediLink support assistant mobile"></a></td>
+</tr>
+</table>
 
 The [medical history mobile snapshot](docs/snapshots/medical-history-mobile.png) shows the responsive timeline, provider and record filters, provenance cards, and source fingerprints. The support assistant is a product-navigation helper: it does not access medical records or provide medical advice. It uses seeded MediLink guidance by default and can optionally call Gemini through the server when `GEMINI_API_KEY` is configured.
 
@@ -277,7 +287,9 @@ The Supabase-backed deployment reports:
 
 Then verify login, refresh on a protected route, consent approval and revocation, and logout. A frontend build alone does not verify the database or authentication configuration.
 
-## Source architecture
+<a id="source-architecture"></a>
+<details>
+<summary><strong>Source architecture</strong></summary>
 
 The application is organized as a single Vite and Express repository with a same-origin API boundary:
 
@@ -300,7 +312,10 @@ Express API (server.ts)
        └─ Isolated JSON store for local development and tests
 ```
 
-## Repository structure
+</details>
+
+<details>
+<summary><strong>Repository structure</strong></summary>
 
 ```text
 api/index.ts                 Vercel API adapter
@@ -324,6 +339,8 @@ docs/snapshots/              README product snapshots
 data/medilink_store.json      Synthetic local seed/demo dataset
 vercel.json                  Production routing and function region
 ```
+
+</details>
 
 ## Security and current scope
 
