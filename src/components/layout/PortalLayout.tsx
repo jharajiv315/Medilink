@@ -111,13 +111,12 @@ export const PortalLayout: React.FC<PortalLayoutProps> = ({
   const clinicianNav = [
     { label: 'Dashboard', path: '/clinic/dashboard', icon: LayoutDashboard },
     { label: 'Access Requests', path: '/clinic/access-requests', icon: FilePlus },
-    { label: 'Patient Records', path: '/clinic/dashboard', icon: FileText },
-    { label: 'Clinical Handoff', path: clinicianHandoffPath, icon: Activity },
-    { label: 'Patients', path: '/clinic/dashboard', icon: User },
-    { label: 'Audit Logs', path: '/clinic/dashboard', icon: History }
+    ...(activeGrantId ? [{ label: 'Clinical Handoff', path: clinicianHandoffPath, icon: Activity }] : [])
   ];
 
-  const navItems = currentUser.role === 'clinician' ? clinicianNav : patientNav;
+  const navItems = currentUser.role === 'admin'
+    ? [{ label: 'Manage clinicians', path: '/admin/clinicians', icon: User }]
+    : currentUser.role === 'clinician' ? clinicianNav : patientNav;
 
   // Companion quote based on current page
   const getCompanionQuote = () => {
@@ -285,7 +284,7 @@ export const PortalLayout: React.FC<PortalLayoutProps> = ({
           <div className="flex items-center gap-2.5 sm:gap-3.5 ml-auto">
             {/* Bell Notification */}
             <button
-              onClick={() => onNavigate('/patient/conflicts')}
+              onClick={() => onNavigate(currentUser.role === 'patient' ? '/patient/conflicts' : currentUser.role === 'admin' ? '/admin/clinicians' : '/clinic/dashboard')}
               className="relative p-2 rounded-full text-[#484D45] hover:bg-[#EBF3E2] transition-colors"
               title="Notifications"
             >
@@ -295,7 +294,7 @@ export const PortalLayout: React.FC<PortalLayoutProps> = ({
 
             {/* Settings */}
             <button
-              onClick={() => onNavigate('/patient/consents')}
+              onClick={() => onNavigate(currentUser.role === 'patient' ? '/patient/consents' : currentUser.role === 'admin' ? '/admin/clinicians' : '/clinic/access-requests')}
               className="p-2 rounded-full text-[#484D45] hover:bg-[#EBF3E2] transition-colors hidden sm:block"
               title="Settings"
             >
@@ -332,12 +331,12 @@ export const PortalLayout: React.FC<PortalLayoutProps> = ({
                   <button
                     onClick={() => {
                       setShowUserDropdown(false);
-                      onNavigate(currentUser.role === 'clinician' ? '/patient/dashboard' : '/clinic/dashboard');
+                      onNavigate(currentUser.role === 'clinician' ? '/clinic/dashboard' : currentUser.role === 'admin' ? '/admin/clinicians' : '/patient/dashboard');
                     }}
                     className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-[13px] text-[#484D45] hover:bg-[#F2F7EB] transition-colors"
                   >
                     <User className="w-4 h-4 text-[#33650E]" />
-                    <span>Switch to {currentUser.role === 'clinician' ? 'Patient' : 'Clinician'} View</span>
+                    <span>My dashboard</span>
                   </button>
                   <button
                     onClick={() => {
@@ -391,7 +390,7 @@ export const PortalLayout: React.FC<PortalLayoutProps> = ({
             </div>
 
             <div className="space-y-1 max-h-72 overflow-y-auto">
-              {navItems.map(item => (
+              {navItems.filter(item => item.label.toLowerCase().includes(searchQuery.trim().toLowerCase())).map(item => (
                 <button
                   key={item.label}
                   onClick={() => {

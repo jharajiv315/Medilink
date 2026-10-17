@@ -45,8 +45,8 @@ async function requestGrant() {
 }
 async function approve(grant, minutes) {
   await pt.goto(base + '/patient/consents');
-  await pt.getByRole('button', { name: /pending grants/i }).click();
-  await pt.getByRole('button', { name: 'Review & Approve', exact: true }).last().click();
+  await pt.getByRole('button', { name: /pending grants|pending requests/i }).click();
+  await pt.getByRole('button', { name: /^(Review & Approve|Approve)$/ }).last().click();
   const dialog = pt.getByRole('dialog', { name: 'Review sharing request' });
   for (const category of ['Medications', 'Lab Reports', 'Consultations']) await dialog.getByLabel(category, { exact: true }).uncheck();
   await dialog.getByRole('button', { name: new RegExp(`${minutes} Minutes`) }).click();
@@ -83,7 +83,7 @@ try {
   assert.equal(crypto.createHash('sha256').update(original.details).digest('hex'), original.sha256Hash);
   await json(patient, route + '/ingest', { title: original.title, rawText: original.details, documentType: 'allergy_challenge' }, 409);
   await pt.goto(base + '/patient/history');
-  await pt.getByRole('heading', { name: 'Medical History Timeline' }).waitFor();
+  await pt.getByRole('heading', { name: /^Medical History(?: Timeline)?$/ }).waitFor();
   await screenshot(pt, '01-source-timeline-mobile');
   check('1. Hospital A and Clinic B import with real source fingerprints');
   const conflict = (await json(patient, route + '/conflicts')).conflicts.find(item => item.conceptKey === 'penicillin');
@@ -136,7 +136,9 @@ try {
   await screenshot(pt, '05-audit-mobile');
   check('5. Patient timeline, audit actions, timestamps and verified event fingerprints');
   await pt.goto(base + '/patient/consents');
-  await pt.getByRole('button', { name: 'Revoke Access Immediately', exact: true }).last().click();
+  const activeTab = pt.getByRole('button', { name: /^Active Access/ });
+  if (await activeTab.count()) await activeTab.click();
+  await pt.getByRole('button', { name: /^Revoke Access(?: Immediately)?$/ }).last().click();
   await pt.getByRole('button', { name: 'Confirm revocation', exact: true }).click();
   await pt.getByRole('dialog').waitFor({ state: 'detached' });
   await dr.reload();

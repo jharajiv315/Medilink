@@ -144,6 +144,7 @@ export const PatientConsents: React.FC<PatientConsentsProps> = ({ onNavigate }) 
       </div>
 
       {/* Filter Tabs matching reference panel 5 */}
+      <button type="button" onClick={loadGrants} className="rounded-xl border border-[#DFE5D8] bg-white px-4 py-2 text-sm font-semibold text-[#33650E]">Refresh requests</button>
       <div className="flex flex-wrap items-center gap-2">
         {[
           { id: 'pending', label: 'Pending Requests' },

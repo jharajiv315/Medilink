@@ -28,6 +28,8 @@ export const PatientHistory: React.FC<PatientHistoryProps> = ({ onNavigate }) =>
 
   const [items, setItems] = useState<TimelineItem[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [selectedProvider, setSelectedProvider] = useState('All');
+  const [sortOrder, setSortOrder] = useState('newest');
   const [searchQuery, setSearchQuery] = useState('');
   const [activeModalItem, setActiveModalItem] = useState<TimelineItem | null>(null);
   const [loading, setLoading] = useState(true);
@@ -68,8 +70,8 @@ export const PatientHistory: React.FC<PatientHistoryProps> = ({ onNavigate }) =>
       item.sourceOrg.toLowerCase().includes(query) ||
       item.details.toLowerCase().includes(query) ||
       (item.evidenceQuote && item.evidenceQuote.toLowerCase().includes(query));
-    return matchesCategory && matchesSearch;
-  });
+    return matchesCategory && matchesSearch && (selectedProvider === 'All' || item.sourceOrg === selectedProvider);
+  }).sort((a, b) => sortOrder === 'newest' ? b.clinicalDate.localeCompare(a.clinicalDate) : a.clinicalDate.localeCompare(b.clinicalDate));
 
   return (
     <div className="max-w-6xl mx-auto px-6 lg:px-12 py-8 space-y-7">
@@ -103,19 +105,18 @@ export const PatientHistory: React.FC<PatientHistoryProps> = ({ onNavigate }) =>
         {/* Dropdowns */}
         <div className="flex flex-wrap items-center gap-2">
           <select
-            value={selectedCategory}
-            onChange={e => setSelectedCategory(e.target.value)}
+            aria-label="Filter by provider"
+            value={selectedProvider}
+            onChange={e => setSelectedProvider(e.target.value)}
             className="px-3 py-1.5 rounded-xl border border-[#DFE5D8] bg-[#FFFFFF] text-[13px] font-medium text-[#484D45] outline-none hover:border-[#CAD4C1] cursor-pointer"
           >
             <option value="All">All Providers</option>
-            <option value="City Diagnostic Center">City Diagnostic Center</option>
-            <option value="Sunrise Hospital">Sunrise Hospital</option>
-            <option value="Greenwood Clinic">Greenwood Clinic</option>
-            <option value="City General Hospital">City General Hospital</option>
+            {[...new Set(items.map(item => item.sourceOrg))].map(provider => <option key={provider} value={provider}>{provider}</option>)}
           </select>
 
           <select
             value={selectedCategory}
+            aria-label="Filter by record type"
             onChange={e => setSelectedCategory(e.target.value)}
             className="px-3 py-1.5 rounded-xl border border-[#DFE5D8] bg-[#FFFFFF] text-[13px] font-medium text-[#484D45] outline-none hover:border-[#CAD4C1] cursor-pointer"
           >
@@ -123,10 +124,13 @@ export const PatientHistory: React.FC<PatientHistoryProps> = ({ onNavigate }) =>
             <option value="Lab Reports">Lab Reports</option>
             <option value="Medications">Prescriptions</option>
             <option value="Consultations">Clinical Notes</option>
-            <option value="Hospital Discharge Summary">Discharge Summaries</option>
+            <option value="Allergies">Allergies</option>
           </select>
 
           <select
+            aria-label="Sort records"
+            value={sortOrder}
+            onChange={event => setSortOrder(event.target.value)}
             className="px-3 py-1.5 rounded-xl border border-[#DFE5D8] bg-[#FFFFFF] text-[13px] font-medium text-[#484D45] outline-none hover:border-[#CAD4C1] cursor-pointer"
           >
             <option value="newest">Newest First</option>
@@ -139,6 +143,8 @@ export const PatientHistory: React.FC<PatientHistoryProps> = ({ onNavigate }) =>
       <div className="relative pt-4 pb-8">
         {loading ? (
           <div className="p-12 text-center text-[#667065]">Nurturing and loading your timeline...</div>
+        ) : filteredItems.length === 0 ? (
+          <div className="rounded-2xl border border-[#DFE5D8] bg-white p-8 text-center text-[#667065]">{items.length ? 'No records match your filters.' : 'No records yet. Import your first record to start your timeline.'}</div>
         ) : (
           <div className="relative">
             {/* The Climbing Botanical Vine Stem */}
@@ -157,48 +163,7 @@ export const PatientHistory: React.FC<PatientHistoryProps> = ({ onNavigate }) =>
 
             {/* Timeline Nodes & Cards */}
             <div className="space-y-6">
-              {(filteredItems.length > 0 ? filteredItems : [
-                {
-                  id: 'demo-1',
-                  title: 'Laboratory Report',
-                  clinicalDate: 'May 12, 2024',
-                  details: 'Comprehensive Metabolic Panel',
-                  sourceOrg: 'City Diagnostic Center',
-                  documentRef: 'Lab_Report_CMP_May2024.pdf',
-                  category: 'Lab Reports' as AccessCategory,
-                  verificationStatus: 'verified'
-                },
-                {
-                  id: 'demo-2',
-                  title: 'Prescription',
-                  clinicalDate: 'Apr 28, 2024',
-                  details: 'Atorvastatin 10mg – 30 tablets',
-                  sourceOrg: 'Dr. Priya Mehta · Sunrise Hospital',
-                  documentRef: 'Rx_Atorvastatin_Apr2024.pdf',
-                  category: 'Medications' as AccessCategory,
-                  verificationStatus: 'verified'
-                },
-                {
-                  id: 'demo-3',
-                  title: 'Clinical Note',
-                  clinicalDate: 'Mar 15, 2024',
-                  details: 'Follow-up for hypertension management',
-                  sourceOrg: 'Greenwood Clinic',
-                  documentRef: 'Clinical_Note_Hypertension_Mar2024.pdf',
-                  category: 'Consultations' as AccessCategory,
-                  verificationStatus: 'pending'
-                },
-                {
-                  id: 'demo-4',
-                  title: 'Hospital Discharge Summary',
-                  clinicalDate: 'Jan 10, 2024',
-                  details: 'Post-surgery recovery notes',
-                  sourceOrg: 'City General Hospital',
-                  documentRef: 'Discharge_Summary_Jan2024.pdf',
-                  category: 'Consultations' as AccessCategory,
-                  verificationStatus: 'verified'
-                }
-              ]).map((item, index) => {
+              {filteredItems.map((item, index) => {
                 const isPending = item.verificationStatus === 'pending' || item.verificationStatus === 'disputed';
                 const nodeColors = [
                   'border-[#78A541] bg-[#eaf4df] text-[#33650E]',

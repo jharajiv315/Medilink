@@ -32,7 +32,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
   ];
 
   return (
-    <div className="flex flex-col w-full text-[#181d16] bg-[#f7fbf0]">
+    <div className="flex flex-col w-full overflow-x-clip text-[#181d16] bg-[#f7fbf0]">
       {/* ================= HERO SECTION ================= */}
       <section className="w-full max-w-7xl mx-auto px-6 lg:px-12 pt-8 pb-16 lg:pt-14 lg:pb-24">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
