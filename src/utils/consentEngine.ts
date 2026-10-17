@@ -8,10 +8,11 @@ export function evaluateGrantStatus(grant: AccessGrant, now: Date = new Date()):
   if (grant.status === 'revoked') return 'revoked';
   if (grant.status === 'rejected') return 'rejected';
   if (grant.status === 'pending') return 'pending';
+  if (grant.status === 'expired') return 'expired';
 
   if (grant.expiresAt) {
     const expiry = new Date(grant.expiresAt);
-    if (now.getTime() > expiry.getTime()) {
+    if (!Number.isFinite(expiry.getTime()) || now.getTime() >= expiry.getTime()) {
       return 'expired';
     }
   }

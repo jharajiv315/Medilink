@@ -52,14 +52,13 @@ export const PatientAccessHistory: React.FC<PatientAccessHistoryProps> = ({ onNa
         <div>
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#F2F7EB] text-[#33650E] text-[11px] font-bold border border-[#DFE5D8] mb-2">
             <span className="material-symbols-outlined text-[14px]">receipt_long</span>
-            <span>Immutable Zero-Tamper Ledger</span>
+            <span>Access and consent history</span>
           </div>
           <h1 className="font-['Plus_Jakarta_Sans'] text-[28px] sm:text-[34px] font-bold text-[#0B0808]">
             Transparent Access &amp; Audit Trail
           </h1>
           <p className="font-['DM_Sans'] text-[15px] text-[#42493b] mt-1">
-            Every clinical document import, access request, physician view, and revocation is
-            cryptographically logged with tamper-evident provenance.
+            Review document imports, access requests, clinical reviews, and revocations with their recorded timestamps.
           </p>
         </div>
 
@@ -81,7 +80,8 @@ export const PatientAccessHistory: React.FC<PatientAccessHistoryProps> = ({ onNa
           { label: 'Access Approved', val: 'ACCESS_APPROVED' },
           { label: 'Access Revoked', val: 'ACCESS_REVOKED' },
           { label: 'Access Denied', val: 'ACCESS_DENIED' },
-          { label: 'Document Ingested', val: 'DOCUMENT_INGESTED' }
+          { label: 'Document Ingested', val: 'DOCUMENT_INGESTED' },
+          { label: 'Clinical Reviews', val: 'CLINICAL_REVIEW_RECORDED' }
         ].map(filter => (
           <button
             key={filter.val}
@@ -162,6 +162,7 @@ export const PatientAccessHistory: React.FC<PatientAccessHistoryProps> = ({ onNa
                       <p className="text-[13px] text-[#0B0808] mt-1 leading-relaxed">
                         {log.details}
                       </p>
+                      {log.sha256Hash && <details className="mt-2 text-xs text-[#667065]"><summary className="cursor-pointer font-semibold">SHA-256 event fingerprint</summary><code className="mt-1 block max-w-xl break-all rounded-lg bg-[#F2F7EB] p-2">{log.sha256Hash}</code></details>}
 
                       <div className="flex flex-wrap items-center gap-3 mt-1.5 text-[11px] text-[#667065]">
                         <span>
@@ -176,7 +177,7 @@ export const PatientAccessHistory: React.FC<PatientAccessHistoryProps> = ({ onNa
                   </div>
 
                   <div className="text-right shrink-0">
-                    <span className="text-[12px] font-mono text-[#667065] block">
+                    <span title={log.timestamp} className="text-[12px] font-mono text-[#667065] block">
                       {new Date(log.timestamp).toLocaleString()}
                     </span>
                     <span className="text-[10px] text-[#72796a] font-mono block mt-0.5">
@@ -193,7 +194,7 @@ export const PatientAccessHistory: React.FC<PatientAccessHistoryProps> = ({ onNa
       <div className="bg-[#F2F7EB] p-4 rounded-xl border border-[#DFE5D8] flex items-center justify-between text-[12px] text-[#42493b]">
         <span className="flex items-center gap-1.5">
           <span className="material-symbols-outlined text-[#33650E] text-[16px]">verified</span>
-          <span>Ledger is tamper-evident with cryptographic SHA-256 event chaining.</span>
+          <span>New events include a SHA-256 fingerprint. Earlier events retain their original metadata.</span>
         </span>
         <button
           onClick={() => onNavigate('/patient/dashboard')}

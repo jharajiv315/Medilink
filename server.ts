@@ -6,6 +6,7 @@ import crypto from 'crypto';
 import { getDb, resetDb, saveDb } from './src/server/mockDb.ts';
 import { databaseMiddleware } from './src/server/supabaseStore.ts';
 import { usesSupabase } from './src/server/requestStore.ts';
+import { extractClinicalFacts } from './src/utils/extractClinicalFacts.ts';
 import {
   detectConflicts,
   mergeConflictsPreservingReviews,
@@ -45,6 +46,7 @@ function logAuditEvent(event: Omit<AuditEvent, 'id' | 'timestamp' | 'ipHash'>): 
     ipHash: `ip-${crypto.createHash('sha256').update(event.actorName + Date.now()).digest('hex').substring(0, 8)}`
   };
   db.auditLogs.unshift(newEvent);
+  newEvent.sha256Hash = crypto.createHash('sha256').update(JSON.stringify(newEvent, Object.keys(newEvent).sort())).digest('hex');
   saveDb();
   return newEvent;
 }
@@ -511,6 +513,7 @@ app.get('/api/patients/:patientId/timeline', (req: Request, res: Response) => {
       category: mapFactTypeToCategory(fact.factType),
       sourceOrg: fact.sourceOrgName,
       documentRef: fact.documentTitle,
+      sha256Hash: patientDocs.find(doc => doc.id === fact.documentId)?.sha256Hash,
       details: fact.value,
       evidenceQuote: fact.evidenceQuote,
       verificationStatus: fact.verificationStatus
@@ -599,8 +602,9 @@ app.post('/api/patients/:patientId/ingest', (req: Request, res: Response) => {
 
   // Ingest facts
   const newFacts: MedicalFact[] = [];
-  if (Array.isArray(extractedItems) && extractedItems.length > 0) {
-    for (const item of extractedItems) {
+  const candidates = Array.isArray(extractedItems) ? extractedItems : extractClinicalFacts(rawText);
+  if (candidates.length > 0) {
+    for (const item of candidates) {
       const factId = `fact-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
       const fact: MedicalFact = {
         id: factId,
@@ -670,7 +674,9 @@ app.post('/api/patients/:patientId/conflicts/:conflictId/affirm', (req: Request,
     return res.status(404).json({ error: 'Conflict not found' });
   }
 
-  const updated = applyPatientAffirmation(conflict, affirmationStatement || 'Patient clarified symptoms.');
+  if (typeof affirmationStatement !== 'string' || !affirmationStatement.trim() || affirmationStatement.length > 10000) return res.status(400).json({ error: 'Enter your own statement before submitting.' });
+  if (conflict.status === 'clinician_reconciled') return res.status(409).json({ error: 'This discrepancy has already been reconciled by a clinician.' });
+  const updated = applyPatientAffirmation(conflict, affirmationStatement.trim());
   const index = db.conflicts.findIndex(c => c.id === conflictId);
   db.conflicts[index] = updated;
 
@@ -860,7 +866,7 @@ app.get('/api/clinic/dashboard', (_req: Request, res: Response) => {
     activeGrants,
     pendingRequests,
     unresolvedDiscrepanciesCount: visibleConflicts.filter(c => c.status !== 'clinician_reconciled').length,
-    recentPatients: visiblePatients
+    recentPatients: visiblePatients.map(({ id, name, patientCode, birthDate, mrn }) => ({ id, name, patientCode, birthDate, mrn }))
   });
 });
 
@@ -940,7 +946,14 @@ app.get('/api/clinic/handoff/:grantId', (req: Request, res: Response) => {
 
   res.json({
     grant,
-    patient,
+    patient: {
+      id: patient.id, name: patient.name, patientCode: patient.patientCode,
+      birthDate: patient.birthDate, mrn: patient.mrn,
+      ...(grant.approvedCategories.includes('Consultations') ? {
+        conditions: patient.conditions, primaryCarePhysician: patient.primaryCarePhysician,
+      } : {}),
+      ...(grant.approvedCategories.includes('Allergies') ? { allergiesSummary: patient.allergiesSummary } : {}),
+    },
     approvedCategories: grant.approvedCategories,
     documents: docsResult.allowedRecords,
     facts: factsResult.allowedRecords,

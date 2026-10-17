@@ -62,20 +62,30 @@ test('API preserves role boundaries and scoped clinician counts', async () => {
     assert.equal((await post(`${consentRoute}/approve`, patientCookie, approval)).status, 200);
     assert.equal((await post(`${consentRoute}/approve`, patientCookie, approval)).status, 409);
     const handoff = await (await fetch(`${base}/api/clinic/handoff/${grant.id}`, { headers })).json();
+    assert.equal(handoff.patient.conditions, undefined);
+    assert.equal(handoff.patient.primaryCarePhysician, undefined);
+    assert.equal(handoff.patient.bloodType, undefined);
     assert(handoff.facts.every((fact: { category: string }) => fact.category === 'Allergies'));
     const conflict = handoff.conflicts.find((item: { status: string }) => item.status !== 'clinician_reconciled');
     if (conflict) {
+      const affirmRoute = `/api/patients/DEMO-P001/conflicts/${conflict.id}/affirm`;
+      assert.equal((await post(affirmRoute, patientCookie, { affirmationStatement: '' })).status, 400);
       const route = `/api/clinic/handoff/${grant.id}/reconcile`;
       assert.equal((await post(route, doctorCookie, { conflictId: conflict.id })).status, 400);
       const review = { conflictId: conflict.id, clinicalResolution: 'Reviewed both source records; further evaluation documented', rationale: 'Isolated workflow test, not a clinical treatment recommendation.' };
       assert.equal((await post(route, doctorCookie, review)).status, 200);
       assert.equal((await post(route, doctorCookie, review)).status, 409);
+      assert.equal((await post(affirmRoute, patientCookie, { affirmationStatement: 'A later note must not overwrite a signed review.' })).status, 409);
       const updated = await (await fetch(`${base}/api/clinic/handoff/${grant.id}`, { headers })).json();
       assert.equal(updated.conflicts.find((item: { id: string }) => item.id === conflict.id).clinicianReview.reviewerName, 'Dr. Marcus Vance');
     }
     assert.equal((await post(`${consentRoute}/revoke`, patientCookie, { reason: 'Workflow test complete' })).status, 200);
     assert.equal((await fetch(`${base}/api/clinic/handoff/${grant.id}`, { headers })).status, 403);
     assert.equal((await post(`${consentRoute}/approve`, patientCookie, approval)).status, 409);
+    const audit = await (await fetch(`${base}/api/audit`, { headers: { Cookie: patientCookie } })).json();
+    const denied = audit.logs.find((event: any) => event.action === 'ACCESS_DENIED' && event.details.includes('revoked'));
+    assert(denied);
+    assert.match(denied.sha256Hash, /^[a-f0-9]{64}$/);
     const importRoute = '/api/patients/DEMO-P001/ingest';
     assert.equal((await post(importRoute, patientCookie, {})).status, 400);
     const importedRecord = { title: 'Isolated import verification', rawText: 'Synthetic encounter for import workflow verification.', documentType: 'specialty_consult', clinicalDate: '2026-10-17', extractedItems: [] };

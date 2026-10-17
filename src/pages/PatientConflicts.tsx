@@ -12,7 +12,7 @@ export const PatientConflicts: React.FC<PatientConflictsProps> = ({ onNavigate }
 
   const [conflicts, setConflicts] = useState<DiscrepancyConflict[]>([]);
   const [loading, setLoading] = useState(true);
-  const [patientNote, setPatientNote] = useState('');
+  const [patientNotes, setPatientNotes] = useState<Record<string, string>>({});
   const [isAffirming, setIsAffirming] = useState(false);
   const [affirmSuccess, setAffirmSuccess] = useState(false);
   const [error, setError] = useState('');
@@ -41,6 +41,8 @@ export const PatientConflicts: React.FC<PatientConflictsProps> = ({ onNavigate }
   }, [patientId]);
 
   const handleAffirm = async (conflictId: string) => {
+    const patientNote = patientNotes[conflictId]?.trim();
+    if (!patientNote || isAffirming) return;
     setIsAffirming(true);
     setError('');
     try {
@@ -264,14 +266,16 @@ export const PatientConflicts: React.FC<PatientConflictsProps> = ({ onNavigate }
                 <div className="flex flex-col sm:flex-row gap-3 pt-1">
                   <input
                     type="text"
-                    value={patientNote}
-                    onChange={e => setPatientNote(e.target.value)}
+                    aria-label={`Your statement for ${conflict.title}`}
+                    maxLength={10000}
+                    value={patientNotes[conflict.id] || ''}
+                    onChange={e => setPatientNotes(previous => ({ ...previous, [conflict.id]: e.target.value }))}
                     placeholder="Enter your symptom confirmation or recollection..."
                     className="flex-1 px-3.5 py-2 bg-[#FFFFFF] border border-[#DFE5D8] rounded-xl text-[13px] text-[#0B0808] focus:outline-none focus:border-[#33650E]"
                   />
                   <button
                     onClick={() => handleAffirm(conflict.id)}
-                    disabled={isAffirming}
+                    disabled={isAffirming || isReconciled || !patientNotes[conflict.id]?.trim()}
                     className="bg-[#33650E] hover:bg-[#28510B] text-[#FFFFFF] text-[13px] font-semibold px-5 py-2 rounded-xl transition-all shadow-sm shrink-0"
                   >
                     {isAffirming ? 'Saving...' : 'Affirm for Clinician'}

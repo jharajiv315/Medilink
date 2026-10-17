@@ -168,4 +168,5 @@ export interface AuditEvent {
   outcome: 'SUCCESS' | 'DENIED' | 'FLAGGED';
   details: string;
   ipHash: string;
+  sha256Hash?: string;
 }

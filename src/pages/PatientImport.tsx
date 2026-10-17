@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext.tsx';
+import { extractClinicalFacts } from '../utils/extractClinicalFacts.ts';
 
 interface PatientImportProps {
   onNavigate: (path: string) => void;
@@ -26,6 +27,8 @@ export const PatientImport: React.FC<PatientImportProps> = ({ onNavigate }) => {
   const [ingestError, setIngestError] = useState('');
 
   const loadSample = (preset: 'hospitalA' | 'clinicB' | 'cardio' | 'urgent' | 'endocrine') => {
+    setIngestSuccess(null);
+    setIngestError('');
     if (preset === 'hospitalA') {
       setSourceOrg('Hospital A (Memorial Health)');
       setDocCategory('discharge_summary');
@@ -78,59 +81,7 @@ export const PatientImport: React.FC<PatientImportProps> = ({ onNavigate }) => {
     e.preventDefault();
     setIsProcessing(true);
 
-    // Extract structured clinical candidate facts based on document text
-    const extractedItems = [];
-    const lower = rawText.toLowerCase();
-
-    if (lower.includes('penicillin allergy — rash') || (lower.includes('penicillin') && lower.includes('rash'))) {
-      extractedItems.push({
-        factType: 'allergy',
-        conceptKey: 'penicillin',
-        assertion: 'Penicillin allergy — rash',
-        value: 'Allergic: documented rash & hives',
-        evidenceQuote: 'Penicillin allergy — rash and hives reported following childhood amoxicillin.'
-      });
-    }
-
-    if (lower.includes('no known drug allergies') || lower.includes('skin prick test negative')) {
-      extractedItems.push({
-        factType: 'allergy',
-        conceptKey: 'penicillin',
-        assertion: 'No known drug allergies (Skin Prick Negative)',
-        value: 'Non-allergic: negative challenge',
-        evidenceQuote: 'Full skin prick test negative. Oral amoxicillin 250mg challenge tolerated without reaction.'
-      });
-    }
-
-    if (lower.includes('metformin 1000mg')) {
-      extractedItems.push({
-        factType: 'medication',
-        conceptKey: 'metformin',
-        assertion: 'Metformin 1000mg BID',
-        value: '1000mg BID PO',
-        evidenceQuote: 'Metformin 1000mg BID continued.'
-      });
-    }
-
-    if (lower.includes('lisinopril')) {
-      extractedItems.push({
-        factType: 'medication',
-        conceptKey: 'lisinopril',
-        assertion: 'Lisinopril 10mg daily',
-        value: '10mg daily PO',
-        evidenceQuote: 'Lisinopril 10mg daily.'
-      });
-    }
-
-    if (lower.includes('cefdinir')) {
-      extractedItems.push({
-        factType: 'medication',
-        conceptKey: 'cefdinir',
-        assertion: 'Cefdinir 300mg BID (Cephalosporin)',
-        value: '300mg BID x 7 days',
-        evidenceQuote: 'Prescribed Cefdinir 300mg BID x 7 days.'
-      });
-    }
+    const extractedItems = extractClinicalFacts(rawText);
 
     try {
       setIngestError('');
@@ -171,15 +122,14 @@ export const PatientImport: React.FC<PatientImportProps> = ({ onNavigate }) => {
           Import Clinical Records
         </h1>
         <p className="font-['DM_Sans'] text-[15px] text-[#42493b] mt-1">
-          Securely ingest hospital discharge summaries, specialist encounter notes, or laboratory PDFs
-          into your unified longitudinal record.
+          Import clinical text and source references into your unified longitudinal record.
         </p>
       </div>
 
       {/* Preset Fast-Loader */}
-      {isSeedDemoPatient && <div className="bg-[#FFFFFF] rounded-2xl p-5 border border-[#DFE5D8] shadow-sm">
+      <div className="bg-[#FFFFFF] rounded-2xl p-5 border border-[#DFE5D8] shadow-sm">
         <span className="text-[11px] font-bold text-[#667065] uppercase tracking-wider block mb-3">
-          Quick Load Verified Clinical Presets
+          Optional fictional samples for demo testing
         </span>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           <button
@@ -225,7 +175,7 @@ export const PatientImport: React.FC<PatientImportProps> = ({ onNavigate }) => {
             </p>
           </button>
         </div>
-      </div>}
+      </div>
 
       {/* Ingestion Form */}
       <form onSubmit={handleIngest} className="bg-[#FFFFFF] rounded-3xl p-6 sm:p-8 border border-[#DFE5D8] shadow-sm space-y-6">
@@ -307,7 +257,7 @@ export const PatientImport: React.FC<PatientImportProps> = ({ onNavigate }) => {
               value={fileName}
               aria-label="File reference"
               onChange={e => setFileName(e.target.value)}
-              className="bg-transparent border-none text-[13px] font-mono text-[#0B0808] flex-1 focus:outline-none"
+              className="min-w-0 bg-transparent border-none text-[13px] font-mono text-[#0B0808] flex-1 focus:outline-none"
             />
             <span className="text-[11px] font-bold text-[#33650E] bg-[#FFFFFF] px-2.5 py-1 rounded-md border border-[#DFE5D8]">
               SHA-256 Hashed
@@ -336,10 +286,10 @@ export const PatientImport: React.FC<PatientImportProps> = ({ onNavigate }) => {
           ></textarea>
         </div>
 
-        <div className="flex items-center justify-between pt-4 border-t border-[#DFE5D8]">
+        <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center justify-between pt-4 border-t border-[#DFE5D8]">
           <div className="flex items-center gap-2 text-[12px] text-[#667065]">
             <span className="material-symbols-outlined text-[#33650E] text-[16px]">lock</span>
-            <span>Zero-knowledge client-side encryption active</span>
+            <span>Access controlled by your sharing permissions</span>
           </div>
 
           <button

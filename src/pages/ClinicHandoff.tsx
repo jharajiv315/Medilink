@@ -38,6 +38,11 @@ export const ClinicHandoff: React.FC<ClinicHandoffProps> = ({ grantId, onNavigat
     })
       .then(async res => {
         const json = await res.json();
+        if (res.status === 403) {
+          setData(json);
+          setLoading(false);
+          return;
+        }
         if (!res.ok) throw new Error(json.message || json.error || 'Unable to load this handoff.');
         if (!json.patient || !json.grant) throw new Error('The server returned an incomplete handoff.');
         setData(json);
@@ -122,20 +127,20 @@ export const ClinicHandoff: React.FC<ClinicHandoffProps> = ({ grantId, onNavigat
 
           <div>
             <span className="text-[12px] font-bold text-[#A33837] uppercase tracking-wider bg-[#FFF0EF] px-3 py-1 rounded-full border border-[#ffdad6]">
-              403 Forbidden • Access Revoked
+              403 Forbidden · {data.status === 'revoked' ? 'Access Revoked' : data.status === 'expired' ? 'Access Expired' : 'Access Denied'}
             </span>
             <h1 className="font-['Plus_Jakarta_Sans'] text-[26px] sm:text-[30px] font-bold text-[#0B0808] mt-3">
-              Clinical Access Terminated by Patient
+              {data.status === 'revoked' ? 'Clinical Access Terminated by Patient' : data.status === 'expired' ? 'Clinical Access Has Expired' : 'Clinical Access Unavailable'}
             </h1>
             <p className="font-['DM_Sans'] text-[15px] text-[#42493b] mt-2 max-w-lg mx-auto">
               {data.message || 'The patient has revoked authorization for this clinic or the time-bound token has expired.'}
             </p>
           </div>
 
-          <div className="p-4 bg-[#F4F5F1] rounded-2xl border border-[#DFE5D8] text-left text-[13px] space-y-1.5 font-mono">
+          <div className="p-4 bg-[#F4F5F1] rounded-2xl border border-[#DFE5D8] text-left text-[13px] space-y-1.5 font-mono break-all">
             <p className="text-[#0B0808]"><strong>Grant ID:</strong> {grantId}</p>
             <p className="text-[#0B0808]"><strong>Status:</strong> {data.status}</p>
-            <p className="text-[#A33837]"><strong>Enforcement:</strong> Cryptographic token invalidated at patient gateway.</p>
+            <p className="text-[#A33837]"><strong>Enforcement:</strong> This sharing permission does not authorize access.</p>
           </div>
 
           <div className="pt-2 flex flex-wrap justify-center gap-4">
@@ -193,26 +198,13 @@ export const ClinicHandoff: React.FC<ClinicHandoffProps> = ({ grantId, onNavigat
                   <span>Active Conditions &amp; Clinical Baseline</span>
                 </h2>
                 <span className="text-[11px] font-bold text-[#33650E] bg-[#F2F7EB] px-2 py-0.5 rounded-full">
-                  FHIR R4 Verified
+                  Patient-authorized
                 </span>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[13px]">
-                <div className="p-3 rounded-xl bg-[#F4F5F1] border border-[#DFE5D8]">
-                  <span className="text-[11px] text-[#667065] font-bold uppercase block">
-                    Endocrine Status
-                  </span>
-                  <p className="font-bold text-[#0B0808] mt-0.5">Type 2 Diabetes Mellitus</p>
-                  <p className="text-[11px] text-[#42493b]">Latest HbA1c: 6.8% (Sep 2026)</p>
-                </div>
-
-                <div className="p-3 rounded-xl bg-[#F4F5F1] border border-[#DFE5D8]">
-                  <span className="text-[11px] text-[#667065] font-bold uppercase block">
-                    Cardiovascular Status
-                  </span>
-                  <p className="font-bold text-[#0B0808] mt-0.5">Essential Hypertension</p>
-                  <p className="text-[11px] text-[#42493b]">Controlled on Lisinopril 10mg</p>
-                </div>
+              <div className="space-y-2 text-[13px]">
+                {patient?.conditions?.length ? patient.conditions.map(condition => <p key={condition} className="rounded-xl bg-[#F4F5F1] p-3 font-medium">{condition}</p>) : <p className="text-[#667065]">No baseline conditions recorded.</p>}
+                {patient?.primaryCarePhysician && <p className="text-[#667065]">Primary care: {patient.primaryCarePhysician}</p>}
               </div>
             </div>
           ) : (

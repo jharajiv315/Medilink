@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext.tsx';
 import { Modal } from '../components/ui/Modal.tsx';
+import { HandoffQr } from '../components/ui/HandoffQr.tsx';
 import type { AccessGrant, AccessCategory } from '../types/medilink.ts';
 
 interface PatientConsentsProps {
@@ -516,19 +517,12 @@ export const PatientConsents: React.FC<PatientConsentsProps> = ({ onNavigate }) 
             <div className="flex items-center justify-between pb-3 border-b border-[#DFE5D8]">
               <div className="text-left">
                 <span className="text-[11px] font-bold text-[#33650E] uppercase bg-[#F2F7EB] px-2.5 py-0.5 rounded-full border border-[#DFE5D8]">
-                  Zero-Knowledge QR Handshake
+                  Authenticated clinical handoff
                 </span>
                 <h3 className="font-['Plus_Jakarta_Sans'] text-[18px] font-bold text-[#0B0808] mt-1">
                   Scan to Open Handoff
                 </h3>
               </div>
-              <button
-                onClick={() => setQrGrant(null)}
-                aria-label="Close handoff link"
-                className="p-1 rounded-lg text-[#72796a] hover:bg-[#F4F5F1]"
-              >
-                <span className="material-symbols-outlined text-[20px]">close</span>
-              </button>
             </div>
 
             <p className="text-[13px] text-[#42493b] text-left">
@@ -538,16 +532,7 @@ export const PatientConsents: React.FC<PatientConsentsProps> = ({ onNavigate }) 
             {/* QR Code Graphic using dynamic SVG API */}
             <div className="p-4 bg-[#F7FBF0] rounded-2xl border-2 border-[#78A541] flex flex-col items-center justify-center space-y-3">
               <div className="w-48 h-48 flex items-center justify-center bg-white rounded-xl shadow-inner border border-[#DFE5D8] overflow-hidden shrink-0">
-                <img
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=192x192&data=${encodeURIComponent(
-                    `${window.location.origin}/clinic/handoff/${qrGrant.id}`
-                  )}`}
-                  alt={`QR code for grant ${qrGrant.id}`}
-                  width={192}
-                  height={192}
-                  className="w-full h-full object-contain p-2"
-                  loading="eager"
-                />
+                <HandoffQr url={`${window.location.origin}/clinic/handoff/${qrGrant.id}`} />
               </div>
               <div className="text-left w-full space-y-1 font-mono text-[11px] bg-white p-2.5 rounded-xl border border-[#DFE5D8]">
                 <p className="text-[#0B0808]"><strong>Grant ID:</strong> {qrGrant.id}</p>

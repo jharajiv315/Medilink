@@ -264,7 +264,7 @@ vercel.json                  Production routing and function region
 - Audit events record actions and outcomes. The current implementation is **not** a cryptographically chained or externally immutable audit ledger.
 - Import currently accepts clinical text and metadata. It does not implement live Epic/Cerner connections, PDF OCR, or a general FHIR server.
 - Discrepancy detection is deterministic and limited to the implemented rules. It does not independently establish a diagnosis or recommend treatment.
-- QR images are currently rendered through a third-party QR service using the handoff URL. The URL still requires the assigned clinician's authenticated access.
+- QR images are generated locally in the browser. The URL still requires the assigned clinician's authenticated access.
 
 ## Contributing
 
