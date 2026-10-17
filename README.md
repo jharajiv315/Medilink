@@ -7,238 +7,168 @@
 [![Backend](https://img.shields.io/badge/backend-Express%204-111111?style=flat-square)](https://expressjs.com/)
 [![Database](https://img.shields.io/badge/database-Supabase%20Postgres-3ECF8E?style=flat-square)](https://supabase.com/)
 
-## About
+## Overview
 
-MediLink brings medical history, documented discrepancies, and sharing permissions into one workspace. Patients manage their records and decide which categories a clinician can access. Doctors request access, review authorized evidence, and document reconciliations with a supporting rationale.
+MediLink gives patients one place to organize health records, inspect documented discrepancies, and control exactly what a clinician can access. Clinicians request time-limited, category-specific access and record a review appended to the patient timeline.
 
-**[Open the application](https://medilink-wheat-two.vercel.app/)** · [Supabase operations guide](docs/SUPABASE.md) · [Report an issue](https://github.com/jharajiv315/Medilink/issues)
+**[Open the live application](https://medilink-wheat-two.vercel.app/)** · [Live demo guide](docs/LIVE-DEMO.md) · [Supabase operations](docs/SUPABASE.md) · [Report an issue](https://github.com/jharajiv315/Medilink/issues)
+
+> This is a demonstration application using synthetic clinical examples. It does not provide medical advice and does not claim HIPAA, SOC 2, or FHIR certification.
 
 ## Contents
 
-[About](#about) · [Hackathon](#hackathon-submission) · [Team](#team) · [Screenshots](#product-snapshots) · [Features](#features) · [Setup](#local-setup) · [Architecture](#source-architecture) · [Testing](#commands-and-verification) · [License](#license)
-
-> MediLink is a demonstration application with synthetic clinical examples. It does not provide medical advice or establish HIPAA, SOC 2, or FHIR conformance certification.
+- [Hackathon submission](#hackathon-submission)
+- [Team](#team)
+- [What the demo shows](#what-the-demo-shows)
+- [Screenshots](#screenshots)
+- [Product capabilities](#product-capabilities)
+- [Architecture](#architecture)
+- [Run locally](#run-locally)
+- [Accounts and access](#accounts-and-access)
+- [Testing](#testing)
+- [Deployment](#deployment)
+- [Source map](#source-map)
+- [Security and scope](#security-and-scope)
+- [License](#license)
 
 ## Hackathon submission
 
-MediLink is the team’s **JAVRIS 3.0** submission. The project addresses fragmented healthcare records by giving patients a clear way to organize evidence, review discrepancies, and control time-limited sharing with clinicians. The repository contains the complete runnable implementation, deployment configuration, database migration, verification scripts, and visual documentation.
+MediLink is the team’s **JAVRIS 3.0** submission. It addresses fragmented healthcare records with a patient-controlled workflow for evidence review, discrepancy handling, and secure clinical handoff.
 
-The repository does not contain an official event brief, judging rubric, event dates, or category assignment. Those details should be added here when the organizers publish them; no event-specific claims are inferred in this document.
+The repository includes the runnable application, Vercel configuration, Supabase migration, integration scripts, visual assets, and live workflow evidence. The repository does not contain an official event brief, judging rubric, dates, or category assignment; those details should be added when the organizers publish them.
 
 ## Team
 
-| Member | Contribution |
+| Member | Primary focus |
 | --- | --- |
 | **Rajiv Jha** | Product direction, architecture, integration, and delivery |
 | **Rangesh Gupta** | Engineering, application workflows, and validation |
 | **Mitesh Jha** | Data, backend integration, and platform support |
 | **Ansh Jaiswal** | Frontend experience, visual system, and presentation |
 
-Contributions may overlap across the implementation. The table identifies the team members and the primary areas represented in the project.
+The team collaborated across the implementation; the table identifies the primary areas represented by each member.
 
-## Product snapshots
+## What the demo shows
 
-The current interface uses MediLink’s botanical Bulbasaur theme: pale sage surfaces, forest-green navigation, rounded clinical cards, botanical accents, and responsive layouts. These snapshots are captured from the verified local build at the same responsive viewports used for the live workflow checks.
+1. A patient signs in and imports two source statements.
+2. MediLink detects a documented discrepancy and preserves the source evidence.
+3. The patient adds an affirmation for the clinician.
+4. A doctor requests selected categories using the patient code.
+5. The patient approves a duration and scopes the handoff.
+6. The doctor reviews evidence and signs a reconciliation.
+7. The patient can inspect audit history, revoke access, and observe denial.
+8. A short-lived grant expires and is denied at the expiry boundary.
+
+See [LIVE-DEMO.md](docs/LIVE-DEMO.md) and [LIVE-TEST-RESULTS.md](docs/LIVE-TEST-RESULTS.md).
+
+## Screenshots
+
+The UI uses a botanical Bulbasaur theme with sage surfaces, forest-green navigation, rounded clinical cards, responsive layouts, local artwork, and a compact support assistant. Select any image for the full-size snapshot.
 
 <table>
 <tr>
 <td align="center"><strong>Patient dashboard</strong><br><a href="docs/snapshots/patient-dashboard-desktop.png"><img src="docs/snapshots/patient-dashboard-desktop.png" width="360" alt="Patient dashboard desktop"></a></td>
 <td align="center"><strong>Clinical handoff</strong><br><a href="docs/snapshots/clinical-handoff-desktop.png"><img src="docs/snapshots/clinical-handoff-desktop.png" width="360" alt="Clinical handoff desktop"></a></td>
 </tr>
-</table>
-
-<table>
 <tr>
 <td align="center"><strong>Patient dashboard on mobile</strong><br><a href="docs/snapshots/patient-dashboard-mobile.png"><img src="docs/snapshots/patient-dashboard-mobile.png" width="220" alt="Patient dashboard mobile"></a></td>
 <td align="center"><strong>Support assistant on mobile</strong><br><a href="docs/snapshots/support-chat-mobile.png"><img src="docs/snapshots/support-chat-mobile.png" width="220" alt="MediLink support assistant mobile"></a></td>
 </tr>
 </table>
 
-The [medical history mobile snapshot](docs/snapshots/medical-history-mobile.png) shows the responsive timeline, provider and record filters, provenance cards, and source fingerprints. The support assistant is a product-navigation helper: it does not access medical records or provide medical advice. It uses seeded MediLink guidance by default and can optionally call Gemini through the server when `GEMINI_API_KEY` is configured.
+See the [medical history mobile snapshot](docs/snapshots/medical-history-mobile.png) for the responsive timeline and provenance cards.
 
-## Features
+## Product capabilities
 
 ### Patient workspace
 
-- Register and sign in to a private patient account.
-- View a health overview and searchable medical history timeline.
-- Import clinical text with document metadata and source references.
-- Review documented allergy and medication discrepancies and add patient statements.
-- Approve requested record categories for a limited period or revoke access.
-- Share a handoff URL or display its QR code for the assigned clinician.
-- Review account-scoped access and consent audit events.
-- Ask the MediLink assistant for product navigation help from the floating **Ask MediLink** button.
+- Private registration and sign-in.
+- Health overview and searchable medical history timeline.
+- Clinical text import with metadata, source references, hashes, and duplicate detection.
+- Evidence-linked discrepancy review and patient statements.
+- Category-specific consent with a selected duration.
+- Local QR generation and authenticated handoff links.
+- Account-scoped access history and audit events.
+- Product-navigation help through **Ask MediLink**.
 
 ### Clinical workspace
 
-- Sign in with an administrator-provisioned doctor account.
-- Request patient records by patient code, purpose, categories, and duration.
-- View active handoffs and pending requests.
-- Open records through an active, authorized grant.
-- Compare source evidence and record a determination and rationale for each discrepancy.
+- Administrator-provisioned doctor accounts.
+- Patient-code access requests with purpose, categories, and duration.
+- Active handoff dashboard and pending requests.
+- Backend-enforced patient-scoped handoff payloads.
+- Source comparison and clinician reconciliation with rationale.
 
-### Administration and persistence
+### Platform
 
-- Provision clinician accounts for existing organizations.
-- Enforce patient, clinician, and administrator permissions on the backend.
-- Persist accounts, password hashes, sessions, records, consent, and reviews in Supabase Postgres.
-- Commit database changes before returning successful API responses.
-- Preserve local JSON storage for isolated development and tests.
-
-## Core workflow
-
-1. A patient registers or signs in and imports clinical information.
-2. A doctor requests specific record categories for a stated purpose.
-3. The patient reviews the request, selects permitted categories, and sets an access duration.
-4. The doctor signs in and opens the authorized handoff, directly or through its QR link.
-5. The doctor reviews discrepancies and records their determination and supporting notes.
-6. The patient can revoke the grant; subsequent handoff requests are denied. Expired grants are also denied.
-
-A QR code contains a handoff URL. Scanning it does not bypass authentication, grant ownership checks, category restrictions, or expiry.
-
-## Technology
-
-| Layer | Implementation |
-| --- | --- |
-| Frontend | React 19, TypeScript, Vite 8 |
-| Styling | Tailwind CSS 4, shared UI components, Lucide icons |
-| Backend | Express 4 on Node.js 24 |
-| Database | Supabase Postgres through the Supavisor transaction pooler |
-| Database client | Postgres.js, pinned in the lockfile |
-| Authentication | Application-managed credentials and server-side sessions |
-| Deployment | Vercel static frontend and Node.js API function |
-| Tests | Node.js test runner and TypeScript checks |
-
-Supabase provides database persistence. Authentication remains managed by the Express application; this project does **not** use Supabase Auth for its patient and doctor login flows.
+- Application-managed credentials and HttpOnly sessions.
+- Supabase Postgres persistence through Supavisor.
+- Request-isolated storage with row locking and commit-before-response behavior.
+- Vercel deployment in Mumbai (`bom1`).
+- Seeded chat guidance with optional server-side Gemini fallback.
 
 ## Architecture
 
 ```text
-React application
-    |
-    | Same-origin /api requests and HttpOnly session cookie
-    v
-Express API
-    |-- Session authentication and role checks
-    |-- Patient ownership and clinical grant authorization
-    |-- Consent filtering and discrepancy processing
-    |
-    v
-Request-isolated storage adapter
-    |-- Supabase: transaction, write lock, commit before response
-    `-- Local development: JSON file
-    |
-    v
-Supabase Postgres / medilink schema
+Browser: React 19 + Vite + Tailwind
+  ├─ Marketing, auth, patient, clinician, and admin screens
+  ├─ Shared UI, QR, chat, and botanical components
+  └─ AuthContext + typed contracts
+       │ same-origin HttpOnly session cookie
+       ▼
+Express API (server.ts)
+  ├─ Authentication, role checks, consent, audit, and handoff routes
+  ├─ Discrepancy processing and product chat
+  └─ Request-isolated persistence adapter
+       ├─ Supabase Postgres JSONB store in production
+       └─ Isolated JSON store for local development and tests
 ```
 
-The current persistence adapter stores the existing application record structure in a JSONB row. Mutations acquire a row lock to prevent lost updates across server instances. Read-only requests avoid that lock, and normal requests append audit events without transferring the full historical audit log.
+The compatibility store preserves the existing application shape in a JSONB row. Mutations acquire a singleton row lock to prevent lost updates. A larger deployment should normalize identity and clinical entities, paginate records, and narrow queries.
 
-This compatibility design supports the current demonstration workload. A larger deployment should normalize records and identity entities, introduce pagination, and use narrower queries and transactions. See [Supabase persistence](docs/SUPABASE.md) for migration, permissions, and recovery details.
+## Run locally
 
-## Local setup
-
-### Prerequisites
-
-- Node.js **24.x**, matching the deployed runtime.
-- npm, included with Node.js.
-- Git.
-- A configured Supabase database only when using managed persistence locally.
-
-### 1. Clone and install
+Requirements: Node.js **24.x**, npm, and Git.
 
 ```bash
 git clone https://github.com/jharajiv315/Medilink.git
 cd Medilink
 npm ci
+npm run dev
 ```
 
-### 2. Configure the environment
+Open [http://localhost:3002](http://localhost:3002). Express serves both the Vite frontend and API. On Windows, use `npm.cmd` if PowerShell blocks `npm.ps1`.
 
-Copy `.env.example` to `.env` and set the variables for your chosen storage mode.
-
-```bash
-# macOS / Linux
-cp .env.example .env
-```
-
-```powershell
-# Windows PowerShell
-Copy-Item .env.example .env
-```
-
-For isolated local development, leave `SUPABASE_DATABASE_URL` empty and set a database file outside the repository:
+Copy `.env.example` to `.env`. For isolated JSON development, leave `SUPABASE_DATABASE_URL` empty and use an external file:
 
 ```dotenv
 MEDILINK_DB_PATH=../medilink-local/store.json
 ```
 
-The backend creates synthetic seed data when this file does not exist. Set unique seed-account passwords if you need to sign in as the demonstration patient, doctor, or administrator. Without those passwords, new patients can still register.
-
-For managed persistence, follow [the Supabase operations guide](docs/SUPABASE.md) to initialize the schema and import the data, then configure the restricted runtime connection:
-
-```dotenv
-SUPABASE_DATABASE_URL=postgresql://medilink_runtime.PROJECT_REF:PASSWORD@POOLER_HOST:6543/postgres
-```
-
-Use the actual transaction-pooler hostname for your project. Do not commit a populated connection URL or use a production database for routine local tests.
-
-### 3. Start the application
-
-```bash
-npm run dev
-```
-
-Open **http://localhost:3002**. The Express development server serves both the frontend through Vite middleware and the API; a separate frontend process is not required.
-
-On Windows, use `npm.cmd` if PowerShell blocks `npm.ps1`.
-
-## Environment variables
-
-| Variable | Purpose |
-| --- | --- |
-| `SUPABASE_DATABASE_URL` | Server-only restricted Postgres connection for persistent storage. Required for the deployed Supabase configuration. |
-| `MEDILINK_DB_PATH` | Optional local JSON path. Use an isolated path outside the repository for development. |
-| `DEMO_PATIENT_PASSWORD` | Optional password for the seeded patient account. Minimum 12 characters. |
-| `CLINICIAN_PASSWORD` | Optional password for the seeded doctor account. Minimum 12 characters. |
-| `ADMIN_PASSWORD` | Optional password for the seeded administrator account. Minimum 12 characters. |
-| `PORT` | Local server port; defaults to `3002`. |
-| `NODE_ENV` | Set to `production` when serving the built frontend locally. |
-| `DISABLE_HMR` | Set to `true` to disable development hot reload and file watching. |
-| `GEMINI_API_KEY` | Optional server-only Gemini key for assistant questions outside the built-in product guide. Never expose it as `VITE_GEMINI_API_KEY`. |
-| `GEMINI_CHAT_MODEL` | Optional Gemini model name; defaults to `gemini-2.5-flash`. |
-
-`DEMO_CLINICIAN_PASSWORD`, `DEMO_CLINICIAN_SESSION_SECRET`, and `DEMO_CLINICIAN_EXPIRES_AT` support a legacy temporary demonstration mode. They are not needed for normal Supabase-backed doctor sessions.
-
-`GEMINI_API_KEY` is optional and is used only by `POST /api/chat` after the user explicitly enables AI responses in the assistant. The route has input limits, rate limiting, a product-only system instruction, and a seeded fallback response when Gemini is unavailable. Do not place patient medical details in chat.
-
-Keep populated environment files, database URLs, account passwords, and backups private. Never prefix a server secret with `VITE_`, because Vite exposes such variables to the browser.
+For managed persistence, follow [docs/SUPABASE.md](docs/SUPABASE.md). Never commit populated environment files, credentials, database URLs, or backups.
 
 ## Accounts and access
 
-| Role | How access is obtained | Main destination |
+| Role | Provisioning | Main route |
 | --- | --- | --- |
-| Patient | Public patient registration or an existing account | `/patient/dashboard` |
-| Clinician | Account provisioned by an administrator | `/clinic/dashboard` |
-| Administrator | Existing provisioned administrator account | `/admin/clinicians` |
+| Patient | Public registration or existing account | `/patient/dashboard` |
+| Clinician | Administrator-provisioned account | `/clinic/dashboard` |
+| Administrator | Existing provisioned account | `/admin/clinicians` |
 
-Patients use the **Patient Sign In** tab. Doctors and administrators use **Clinical Team**. Doctor self-registration and role switching are not available.
+Patients use **Patient Sign In**. Doctors and administrators use **Clinical Team**. Doctors cannot self-register or switch personas. Demo credentials are distributed privately.
 
-Demo credentials are distributed privately and are not published in this repository. An administrator can provision additional clinicians after signing in.
-
-## Commands and verification
-
-| Command | Purpose |
+| Environment variable | Purpose |
 | --- | --- |
-| `npm run dev` | Start the combined development frontend and backend. |
-| `npm run lint` | Run TypeScript checks; this command does not run ESLint. |
-| `npm test` | Run engine, API, and persistence-adapter tests. |
-| `npm run build` | Build the frontend into `dist/`. |
-| `npm run start` | Start Express; use `NODE_ENV=production` to serve the built frontend. |
-| `npm run preview` | Preview the Vite build only; it does not start the Express API. |
-| `node --env-file=.env.supabase.local scripts/verify-live-demo.mjs <API_BASE_URL>` | Run the authenticated two-device workflow check against a designated environment. The full run includes real grant expiry and creates/removes only its own synthetic fixture records. |
+| `SUPABASE_DATABASE_URL` | Restricted server-only Postgres connection |
+| `MEDILINK_DB_PATH` | Optional isolated local JSON database path |
+| `DEMO_PATIENT_PASSWORD` | Optional seeded patient password, minimum 12 characters |
+| `CLINICIAN_PASSWORD` | Optional seeded clinician password, minimum 12 characters |
+| `ADMIN_PASSWORD` | Optional seeded administrator password, minimum 12 characters |
+| `GEMINI_API_KEY` | Optional server-only assistant key |
+| `GEMINI_CHAT_MODEL` | Optional model; defaults to `gemini-2.5-flash` |
+| `PORT` | Local port; defaults to `3002` |
 
-Run the standard checks before opening a pull request:
+## Testing
 
 ```bash
 npm run lint
@@ -246,122 +176,74 @@ npm test
 npm run build
 ```
 
-Tests cover discrepancy classification, reconciliation preservation, consent expiry and revocation, authorization boundaries, import deduplication, database commit ordering, rollback behavior, and audit preservation. API tests use an isolated temporary JSON database.
+Tests cover discrepancy classification, affirmation, reconciliation, consent expiry and revocation, authorization boundaries, import deduplication, database commit ordering, rollback behavior, chat validation, and audit preservation.
 
-The Supabase workflow verification script is an **integration test that writes synthetic records**. Run it only against an explicitly designated environment:
+Run the live workflow only against a designated environment:
 
 ```bash
-node --env-file=.env.supabase.local scripts/verify-supabase.mjs <API_BASE_URL_A> <API_BASE_URL_B>
+node --env-file=.env.supabase.local scripts/verify-live-demo.mjs https://medilink-wheat-two.vercel.app
 ```
 
-It requires the database connection and administrator password. Two API instances can be supplied to verify shared persistence. The script removes only the synthetic accounts and clinical records it creates; it retains their audit events.
+The script creates and removes only its own synthetic fixtures and retains their audit events. The recorded run used isolated mobile and desktop Chromium contexts; it did not replace physical Safari or phone-camera testing.
 
 ## Deployment
 
-The repository is configured for Vercel:
-
-- Vite produces the static frontend.
-- `api/index.ts` adapts API requests to Express.
-- `vercel.json` routes `/api/*` to the API function and supports frontend deep links.
-- The backend executes in Mumbai (`bom1`), near the Supabase database.
-- Production environment variables are configured separately in Vercel.
-
-Configure `SUPABASE_DATABASE_URL` as a server-only secret before deploying. Configure any required seed-account passwords separately. A Vercel deployment without a persistent connection fails closed unless an explicit local/test file path was supplied.
-
-After deployment, check:
+Vercel uses the Vite build and `api/index.ts` Express adapter. `vercel.json` routes `/api/*`, supports deep links, and selects `bom1`. Configure `SUPABASE_DATABASE_URL` and required seed passwords as server-only Vercel variables.
 
 ```text
-GET /api/health
+GET https://medilink-wheat-two.vercel.app/api/health
 ```
 
-The Supabase-backed deployment reports:
+Expected response:
 
 ```json
-{
-  "status": "healthy",
-  "service": "MediLink Continuity Core",
-  "version": "1.0.0",
-  "storage": "supabase"
-}
+{"status":"healthy","service":"MediLink Continuity Core","version":"1.0.0","storage":"supabase"}
 ```
 
-Then verify login, refresh on a protected route, consent approval and revocation, and logout. A frontend build alone does not verify the database or authentication configuration.
-
-<a id="source-architecture"></a>
-<details>
-<summary><strong>Source architecture</strong></summary>
-
-The application is organized as a single Vite and Express repository with a same-origin API boundary:
-
-```text
-Browser
-  └─ React 19 + Vite + Tailwind
-       ├─ Marketing and authentication pages
-       ├─ Patient portal pages
-       ├─ Clinical and admin portal pages
-       ├─ Shared layout, navigation, modal, QR, chat, and botanical components
-       └─ AuthContext and typed application contracts
-            │ same-origin HttpOnly session cookie
-            ▼
-Express API (server.ts)
-  ├─ Authentication, sessions, and role checks
-  ├─ Patient records, imports, discrepancies, consent, audit, and handoff routes
-  ├─ Product support chat with seeded replies and optional server-side Gemini
-  └─ Request-isolated persistence middleware
-       ├─ Supabase Postgres JSONB store with row locking in production
-       └─ Isolated JSON store for local development and tests
-```
-
-</details>
+## Source map
 
 <details>
-<summary><strong>Repository structure</strong></summary>
+<summary>Show repository structure</summary>
 
 ```text
 api/index.ts                 Vercel API adapter
 server.ts                    Express routes and authentication
-src/components/              Shared UI, layout, chat, botanical theme, and navigation
-src/components/ui/           Button, badge, modal, page state, logo, and QR components
-src/components/layout/      Patient/clinical portal shell and responsive navigation
-src/components/botanical/   Theme background, hero, mascot, and foliage components
+src/App.tsx                  Client route selection and portal shell
+src/components/              Shared UI, layout, chat, and botanical theme
 src/context/                 Client authentication state
 src/pages/                   Landing, auth, patient, clinician, and admin screens
 src/server/                  Persistence, TLS, chat handler, and API tests
-src/types/                   Shared TypeScript data contracts
-src/utils/                   Consent, discrepancy, and clinical extraction engines
-public/assets/               Bundled healthcare photography and botanical artwork
-scripts/                     Migration preparation, import, and integration verification
-supabase/migrations/         Database schema and runtime-role permissions
-docs/SUPABASE.md             Database operations, security, and recovery guide
-docs/LIVE-DEMO.md             Manual two-device demonstration instructions
-docs/LIVE-TEST-RESULTS.md    Recorded live workflow evidence and limits
-docs/snapshots/              README product snapshots
-data/medilink_store.json      Synthetic local seed/demo dataset
+src/types/                   Shared TypeScript contracts
+src/utils/                   Consent, discrepancy, and extraction engines
+public/assets/               Healthcare photography and botanical artwork
+scripts/                     Migration, import, cleanup, and live verification
+supabase/migrations/         Database schema and runtime permissions
+docs/                        Operations, demo guide, results, and snapshots
+data/medilink_store.json     Synthetic local seed/demo dataset
 vercel.json                  Production routing and function region
 ```
 
 </details>
 
-## Security and current scope
+## Security and scope
 
-- Passwords are stored as salted scrypt hashes; normal sessions use opaque tokens whose hashes are stored server-side.
-- Session cookies are HttpOnly, SameSite=Strict, and Secure in production.
-- The API checks account roles, patient ownership, clinical grant assignment, permitted categories, and grant status.
-- The Supabase runtime role has limited access to MediLink's storage. Anonymous clients have no direct clinical-data access.
-- Database connections verify TLS certificates using Supabase's public root CA.
-- Imported clinical text receives a SHA-256 content fingerprint for provenance and duplicate detection.
-- Audit events record actions and outcomes. The current implementation is **not** a cryptographically chained or externally immutable audit ledger.
-- Import currently accepts clinical text and metadata. It does not implement live Epic/Cerner connections, PDF OCR, or a general FHIR server.
-- Discrepancy detection is deterministic and limited to the implemented rules. It does not independently establish a diagnosis or recommend treatment.
-- QR images are generated locally in the browser. The URL still requires the assigned clinician's authenticated access.
+- Passwords use salted scrypt hashes; sessions use opaque server-side tokens.
+- Production cookies are HttpOnly, Secure, and SameSite=Strict.
+- Backend authorization checks roles, ownership, assigned clinicians, categories, grant status, revocation, and expiry.
+- The Supabase runtime role is restricted to private storage; anonymous clients have no direct clinical-data access.
+- Database TLS verifies Supabase’s public root CA.
+- Imported clinical text receives SHA-256 provenance fingerprints.
+- Audit events are preserved and fingerprinted; the implementation is not an externally immutable chained ledger.
+- Import accepts clinical text and metadata; it does not implement live Epic/Cerner connections, PDF OCR, or a general FHIR server.
+- Discrepancy detection is deterministic and does not diagnose or recommend treatment.
+- QR images are generated locally; handoff URLs still require clinician authentication and grant authorization.
 
 ## License
 
 Copyright © 2026 Rajiv Jha, Rangesh Gupta, Mitesh Jha, and Ansh Jaiswal. All rights reserved.
 
-The source, artwork, screenshots, clinical seed data, and documentation are provided for the JAVRIS 3.0 demonstration and evaluation. No permission is granted to copy, redistribute, sell, or reuse the project or its assets without written permission from the team. Third-party packages remain under their respective licenses, listed in `package-lock.json` and their package metadata.
+The source, artwork, screenshots, clinical seed data, and documentation are provided for JAVRIS 3.0 demonstration and evaluation. No permission is granted to copy, redistribute, sell, or reuse the project or its assets without written permission. Third-party packages remain under their respective licenses.
 
 ## Contributing
 
-Open an issue describing the affected workflow, expected behavior, and reproduction steps. Keep pull requests focused, preserve authorization boundaries, and run the standard checks before submitting. Never include real patient information, credentials, or private database exports in an issue or pull request.
-
+Open an issue with the affected workflow, expected behavior, and reproduction steps. Keep pull requests focused, preserve authorization boundaries, and run the standard checks before submitting. Never include real patient information, credentials, or private database exports.
