@@ -137,7 +137,7 @@ try {
   check('5. Patient timeline, audit actions, timestamps and verified event fingerprints');
   await pt.goto(base + '/patient/consents');
   const activeTab = pt.getByRole('button', { name: /^Active Access/ });
-  if (await activeTab.count()) await activeTab.click();
+  await activeTab.click();
   await pt.getByRole('button', { name: /^Revoke Access(?: Immediately)?$/ }).last().click();
   await pt.getByRole('button', { name: 'Confirm revocation', exact: true }).click();
   await pt.getByRole('dialog').waitFor({ state: 'detached' });
