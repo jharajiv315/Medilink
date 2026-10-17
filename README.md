@@ -1,12 +1,36 @@
 # MediLink
 
-Patient-controlled medical record sharing and clinical handoff.
+> Patient-controlled medical record sharing and clinical handoff for **JAVRIS 3.0**.
+
+[![Production](https://img.shields.io/badge/production-live-33650E?style=flat-square)](https://medilink-wheat-two.vercel.app/)
+[![Frontend](https://img.shields.io/badge/frontend-React%2019-149ECA?style=flat-square)](https://react.dev/)
+[![Backend](https://img.shields.io/badge/backend-Express%204-111111?style=flat-square)](https://expressjs.com/)
+[![Database](https://img.shields.io/badge/database-Supabase%20Postgres-3ECF8E?style=flat-square)](https://supabase.com/)
+
+## About
 
 MediLink brings medical history, documented discrepancies, and sharing permissions into one workspace. Patients manage their records and decide which categories a clinician can access. Doctors request access, review authorized evidence, and document reconciliations with a supporting rationale.
 
 **[Open the application](https://medilink-wheat-two.vercel.app/)** · [Supabase operations guide](docs/SUPABASE.md) · [Report an issue](https://github.com/jharajiv315/Medilink/issues)
 
 > MediLink is a demonstration application with synthetic clinical examples. It does not provide medical advice or establish HIPAA, SOC 2, or FHIR conformance certification.
+
+## Hackathon submission
+
+MediLink is the team’s **JAVRIS 3.0** submission. The project addresses fragmented healthcare records by giving patients a clear way to organize evidence, review discrepancies, and control time-limited sharing with clinicians. The repository contains the complete runnable implementation, deployment configuration, database migration, verification scripts, and visual documentation.
+
+The repository does not contain an official event brief, judging rubric, event dates, or category assignment. Those details should be added here when the organizers publish them; no event-specific claims are inferred in this document.
+
+## Team
+
+| Member | Contribution |
+| --- | --- |
+| **Rajiv Jha** | Product direction, architecture, integration, and delivery |
+| **Rangesh Gupta** | Engineering, application workflows, and validation |
+| **Mitesh Jha** | Data, backend integration, and platform support |
+| **Ansh Jaiswal** | Frontend experience, visual system, and presentation |
+
+Contributions may overlap across the implementation. The table identifies the team members and the primary areas represented in the project.
 
 ## Product snapshots
 
@@ -253,20 +277,50 @@ The Supabase-backed deployment reports:
 
 Then verify login, refresh on a protected route, consent approval and revocation, and logout. A frontend build alone does not verify the database or authentication configuration.
 
+## Source architecture
+
+The application is organized as a single Vite and Express repository with a same-origin API boundary:
+
+```text
+Browser
+  └─ React 19 + Vite + Tailwind
+       ├─ Marketing and authentication pages
+       ├─ Patient portal pages
+       ├─ Clinical and admin portal pages
+       ├─ Shared layout, navigation, modal, QR, chat, and botanical components
+       └─ AuthContext and typed application contracts
+            │ same-origin HttpOnly session cookie
+            ▼
+Express API (server.ts)
+  ├─ Authentication, sessions, and role checks
+  ├─ Patient records, imports, discrepancies, consent, audit, and handoff routes
+  ├─ Product support chat with seeded replies and optional server-side Gemini
+  └─ Request-isolated persistence middleware
+       ├─ Supabase Postgres JSONB store with row locking in production
+       └─ Isolated JSON store for local development and tests
+```
+
 ## Repository structure
 
 ```text
 api/index.ts                 Vercel API adapter
 server.ts                    Express routes and authentication
-src/components/              Navigation, footer, and shared UI components
+src/components/              Shared UI, layout, chat, botanical theme, and navigation
+src/components/ui/           Button, badge, modal, page state, logo, and QR components
+src/components/layout/      Patient/clinical portal shell and responsive navigation
+src/components/botanical/   Theme background, hero, mascot, and foliage components
 src/context/                 Client authentication state
-src/pages/                   Landing, authentication, patient, doctor, and admin screens
-src/server/                  Storage adapters, TLS configuration, and API tests
-src/types/                   Application data contracts
-src/utils/                   Consent and discrepancy engines with tests
+src/pages/                   Landing, auth, patient, clinician, and admin screens
+src/server/                  Persistence, TLS, chat handler, and API tests
+src/types/                   Shared TypeScript data contracts
+src/utils/                   Consent, discrepancy, and clinical extraction engines
+public/assets/               Bundled healthcare photography and botanical artwork
 scripts/                     Migration preparation, import, and integration verification
 supabase/migrations/         Database schema and runtime-role permissions
-docs/SUPABASE.md             Database operations and recovery guide
+docs/SUPABASE.md             Database operations, security, and recovery guide
+docs/LIVE-DEMO.md             Manual two-device demonstration instructions
+docs/LIVE-TEST-RESULTS.md    Recorded live workflow evidence and limits
+docs/snapshots/              README product snapshots
 data/medilink_store.json      Synthetic local seed/demo dataset
 vercel.json                  Production routing and function region
 ```
@@ -284,8 +338,13 @@ vercel.json                  Production routing and function region
 - Discrepancy detection is deterministic and limited to the implemented rules. It does not independently establish a diagnosis or recommend treatment.
 - QR images are generated locally in the browser. The URL still requires the assigned clinician's authenticated access.
 
+## License
+
+Copyright © 2026 Rajiv Jha, Rangesh Gupta, Mitesh Jha, and Ansh Jaiswal. All rights reserved.
+
+The source, artwork, screenshots, clinical seed data, and documentation are provided for the JAVRIS 3.0 demonstration and evaluation. No permission is granted to copy, redistribute, sell, or reuse the project or its assets without written permission from the team. Third-party packages remain under their respective licenses, listed in `package-lock.json` and their package metadata.
+
 ## Contributing
 
 Open an issue describing the affected workflow, expected behavior, and reproduction steps. Keep pull requests focused, preserve authorization boundaries, and run the standard checks before submitting. Never include real patient information, credentials, or private database exports in an issue or pull request.
 
-No `LICENSE` file is currently included in this repository; this README does not grant an open-source license.
